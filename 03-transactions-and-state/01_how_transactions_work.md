@@ -104,13 +104,13 @@ sequenceDiagram
 ```
 
 ### Exact Before & After Balance Ledger
-| Field | Before Block | Change | After Block |
-| :--- | :--- | :--- | :--- |
+| Field             | Before Block           | Change                                                  | After Block              |
+|:------------------|:-----------------------|:--------------------------------------------------------|:-------------------------|
 | **Alice Balance** | `1,000.000000000 ONXC` | `-250.000000315 ONXC` (`250 ONXC + 210 burn + 105 tip`) | **`749.999999685 ONXC`** |
-| **Alice Nonce** | `0` | `+1` | **`1`** |
-| **Bob Balance** | `10.000000000 ONXC` | `+250.000000000 ONXC` | **`260.000000000 ONXC`** |
-| **Validator Tip** | `0` | `+105 nano-ONXC` (`21 * 5`) | **`+105 nano-ONXC`** |
-| **Supply Burned** | — | `-210 nano-ONXC` (`21 * 10`) | **Burned Forever!** |
+| **Alice Nonce**   | `0`                    | `+1`                                                    | **`1`**                  |
+| **Bob Balance**   | `10.000000000 ONXC`    | `+250.000000000 ONXC`                                   | **`260.000000000 ONXC`** |
+| **Validator Tip** | `0`                    | `+105 nano-ONXC` (`21 * 5`)                             | **`+105 nano-ONXC`**     |
+| **Supply Burned** | —                      | `-210 nano-ONXC` (`21 * 10`)                            | **Burned Forever!**      |
 
 ---
 

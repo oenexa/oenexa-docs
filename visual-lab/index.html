@@ -22,6 +22,7 @@
         <button class="tab-btn" data-tab="trie">4. Merkle Trie</button>
         <button class="tab-btn" data-tab="bft">5. BFT &amp; Staking</button>
         <button class="tab-btn" data-tab="privacy">6. Privacy &amp; VM</button>
+        <button class="tab-btn" data-tab="devlab">7. Dev Path &amp; DeFi</button>
       </nav>
     </div>
   </header>
@@ -386,6 +387,73 @@
           <button class="action" id="btn-vm-run">Execute inside OenexaVM Sandbox</button>
         </div>
         <div class="mono-box" id="vm-out" style="margin-top:10px;">Committed Counter Slot #0 = 5 | Click Execute to trace host ABI calls!</div>
+      </div>
+    </section>
+
+    <!-- 7. DEV PATH: DEFI AMM, UTXO vs ACCOUNT & REENTRANCY -->
+    <section class="panel" id="tab-devlab">
+      <div class="callout">
+        <strong>Developer Path Lab:</strong> Practice how DeFi pools price tokens (<code>x &middot; y = k</code>), compare Bitcoin-style UTXO change outputs vs. OENEXA account state, and step through the classic Reentrancy security defense!
+      </div>
+
+      <div class="card">
+        <h2>DeFi Automated Market Maker (<code>x &middot; y = k</code>) Swap Simulator</h2>
+        <div class="stat-grid">
+          <div class="stat"><div class="k">Pool ONXC Reserve (<code>x</code>)</div><div class="v" id="amm-x">10,000 ONXC</div></div>
+          <div class="stat"><div class="k">Pool USDC Reserve (<code>y</code>)</div><div class="v" id="amm-y">20,000 USDC</div></div>
+          <div class="stat"><div class="k">Constant <code>k = x &middot; y</code></div><div class="v" id="amm-k">200,000,000</div></div>
+          <div class="stat"><div class="k">Spot Price</div><div class="v" id="amm-spot">$2.00 / ONXC</div></div>
+        </div>
+        <div class="grid-2">
+          <div>
+            <label for="amm-dx">Swap Input Amount (<code>dx</code> ONXC sold into pool)</label>
+            <input type="number" id="amm-dx" value="1000" min="1" />
+            <div class="btn-row">
+              <button class="action" id="btn-amm-swap">Execute Swap (&Delta;x ONXC &rarr; &Delta;y USDC)</button>
+              <button class="action secondary" id="btn-amm-reset">Reset Pool (10k / 20k)</button>
+            </div>
+            <div class="mono-box" id="amm-out" style="margin-top:10px;">Swap preview: 1,000 ONXC receives ~1,818.18 USDC (9.1% slippage).</div>
+          </div>
+          <div>
+            <label>Constant Product Hyperbola (<code>x &middot; y = k</code>)</label>
+            <svg id="amm-svg" viewBox="0 0 360 170" class="trie-svg" aria-label="AMM bonding curve"></svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Security Simulator: Reentrancy Attack vs. Fixed Code</h3>
+          <label for="sec-mode">Vault Contract Mode</label>
+          <select id="sec-mode">
+            <option value="vuln">Vulnerable (Transfer Coin BEFORE Setting Balance = 0)</option>
+            <option value="safe">Secure (Checks &rarr; Effects &rarr; Interactions)</option>
+          </select>
+          <div class="stat-grid">
+            <div class="stat"><div class="k">Vault Total ONXC</div><div class="v" id="sec-vault">500 ONXC</div></div>
+            <div class="stat"><div class="k">Attacker Recorded Stake</div><div class="v" id="sec-stake">100 ONXC</div></div>
+            <div class="stat"><div class="k">Attacker Looted</div><div class="v" id="sec-loot">0 ONXC</div></div>
+          </div>
+          <div class="btn-row">
+            <button class="action danger" id="btn-sec-run">Run withdraw() With Fallback Re-Entry</button>
+            <button class="action secondary" id="btn-sec-reset">Reset Vault</button>
+          </div>
+          <div class="mono-box" id="sec-log" style="margin-top:10px;">Ready. Compare Vulnerable vs. Secure mode!</div>
+        </div>
+
+        <div class="card">
+          <h3>UTXO Cash Bills vs. OENEXA Account State</h3>
+          <p class="muted">Compare paying <strong>3 ONXC</strong> when Alice starts with <strong>10 ONXC</strong> (fee: <code>0.00000021 ONXC</code>):</p>
+          <div class="btn-row">
+            <button class="action" id="btn-utxo-show">Show UTXO Bill Model</button>
+            <button class="action secondary" id="btn-acct-show">Show OENEXA Account Model</button>
+          </div>
+          <div class="mono-box" id="model-out" style="margin-top:10px;">
+            <strong>OENEXA Account Model (Sparse Merkle Trie):</strong><br/>
+            Before: Alice = 10.000000000 ONXC | Bob = 0 ONXC<br/>
+            After TxTransfer(3 ONXC): Alice = 6.999999790 ONXC | Bob = 3.000000000 ONXC (Direct integer update — zero change outputs needed!)
+          </div>
+        </div>
       </div>
     </section>
   </main>

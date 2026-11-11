@@ -40,12 +40,12 @@ flowchart TD
 ### Worked Example: How 4 Waiting Transactions Are Ordered
 Suppose 4 valid transactions wait in the mempool:
 
-| Tx | Sender | `GasPrice` (`nano-ONXC/gas`) | Arrival `Timestamp` | Boarding Position | Reason |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **T1** | Bob | `12` | `t = 100 ns` | **#2** | Tied at `12` with Carol, arrived *earlier* (`100 < 300`) |
-| **T2** | Alice | `20` | `t = 200 ns` | **#1 (First!)** | Highest `GasPrice = 20` |
-| **T3** | Carol | `12` | `t = 300 ns` | **#3** | Tied at `12` with Bob, arrived *later* (`300 > 100`) |
-| **T4** | Dave | `10` | `t = 50 ns` | **#4 (Last)** | Lowest `GasPrice = 10` (even though arrived first!) |
+| Tx     | Sender | `GasPrice` (`nano-ONXC/gas`) | Arrival `Timestamp` | Boarding Position | Reason                                                   |
+|:-------|:-------|:-----------------------------|:--------------------|:------------------|:---------------------------------------------------------|
+| **T1** | Bob    | `12`                         | `t = 100 ns`        | **#2**            | Tied at `12` with Carol, arrived *earlier* (`100 < 300`) |
+| **T2** | Alice  | `20`                         | `t = 200 ns`        | **#1 (First!)**   | Highest `GasPrice = 20`                                  |
+| **T3** | Carol  | `12`                         | `t = 300 ns`        | **#3**            | Tied at `12` with Bob, arrived *later* (`300 > 100`)     |
+| **T4** | Dave   | `10`                         | `t = 50 ns`         | **#4 (Last)**     | Lowest `GasPrice = 10` (even though arrived first!)      |
 
 ### Replace-By-Fee (Speeding Up a Stuck Transaction)
 Suppose Dave later decides `GasPrice = 10` is too slow during heavy traffic and broadcasts an updated transaction with the **exact same `Nonce`**, higher `GasPrice`, and higher priority; or if the 100,000-slot mempool is full, any newcomer offering a **strictly higher `GasPrice`** than the cheapest item evicts that cheapest item cleanly.

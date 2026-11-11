@@ -39,11 +39,11 @@ flowchart LR
 ### Worked Example: Catching a Cheater in Block 1
 Suppose Block 0, Block 1, and Block 2 have these genuine `SHA-3-256` fingerprints:
 
-| Block | Stored `PrevHash` | Block Data | Computed `SHA-3-256` Hash | Chain Status |
-| :--- | :--- | :--- | :--- | :--- |
-| **Block 0** | `0000...0000` | `Genesis` | `43fdef2f90a2813b...` | Valid |
-| **Block 1** | `43fdef2f90a2813b...` | `Alice->Bob:250` | `187244180b90c4a6...` | Valid |
-| **Block 2** | `187244180b90c4a6...` | `Carol stakes 1000` | `a3f0384123db24c6...` | Valid |
+| Block       | Stored `PrevHash`     | Block Data          | Computed `SHA-3-256` Hash | Chain Status |
+|:------------|:----------------------|:--------------------|:--------------------------|:-------------|
+| **Block 0** | `0000...0000`         | `Genesis`           | `43fdef2f90a2813b...`     | Valid        |
+| **Block 1** | `43fdef2f90a2813b...` | `Alice->Bob:250`    | `187244180b90c4a6...`     | Valid        |
+| **Block 2** | `187244180b90c4a6...` | `Carol stakes 1000` | `a3f0384123db24c6...`     | Valid        |
 
 Now suppose Alice tries to cheat **later** by editing Block 1 from `250` to `999` (`Alice->Bob:999`):
 1. Recomputing Block 1's hash now yields **`8227a61e167ec44a...`** (completely different!).

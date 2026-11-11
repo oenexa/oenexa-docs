@@ -23,11 +23,11 @@ In OENEXA (`internal/consensus/engine.go`):
 
 ### Worked Quorum Reference Table
 
-| Total Validators (`N`) | Max Faulty/Traitor (`f`) | Required Quorum (`Q = floor(2N/3) + 1`) | What Happens if `1` Extra Node Drops? |
-| :--- | :--- | :--- | :--- |
-| **`N = 4`** | **`1`** | **`3`** votes (`75%`) | If `2` go offline, only `2` remain (`< 3`): chain pauses safely instead of forking! |
-| **`N = 7`** | **`2`** | **`5`** votes (`71%`) | Up to `2` offline/Byzantine nodes cannot stop blocks. |
-| **`N = 10`** | **`3`** | **`7`** votes (`70%`) | Tolerates `3` faulty validators completely safely. |
+| Total Validators (`N`) | Max Faulty/Traitor (`f`) | Required Quorum (`Q = floor(2N/3) + 1`) | What Happens if `1` Extra Node Drops?                                               |
+|:-----------------------|:-------------------------|:----------------------------------------|:------------------------------------------------------------------------------------|
+| **`N = 4`**            | **`1`**                  | **`3`** votes (`75%`)                   | If `2` go offline, only `2` remain (`< 3`): chain pauses safely instead of forking! |
+| **`N = 7`**            | **`2`**                  | **`5`** votes (`71%`)                   | Up to `2` offline/Byzantine nodes cannot stop blocks.                               |
+| **`N = 10`**           | **`3`**                  | **`7`** votes (`70%`)                   | Tolerates `3` faulty validators completely safely.                                  |
 
 ---
 

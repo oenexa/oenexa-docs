@@ -691,6 +691,87 @@
     $("vm-out").innerHTML = `<span class="badge ok">COMMITTED</span> <code>oen_get(0)</code>=${vmCommittedSlot - 1} &rarr; <code>oen_set(0, ${vmCommittedSlot})</code>, GasUsed=${cost}/${limit}. Committed Slot #0 is now <strong>${vmCommittedSlot}</strong>.`;
   });
 
+  // ── 7. DEVELOPER PATH: DEFI AMM, SECURITY & UTXO vs ACCOUNT ───────────────
+  let ammX = 10000;
+  let ammY = 20000;
+  function renderAMM() {
+    const k = ammX * ammY;
+    const spot = ammY / ammX;
+    $("amm-x").textContent = fmtInt(Math.round(ammX)) + " ONXC";
+    $("amm-y").textContent = fmtInt(Math.round(ammY)) + " USDC";
+    $("amm-k").textContent = fmtInt(Math.round(k));
+    $("amm-spot").textContent = "$" + spot.toFixed(3) + " / ONXC";
+
+    const dx = Math.max(1, Number($("amm-dx").value) || 0);
+    const newX = ammX + dx;
+    const newY = k / newX;
+    const dy = ammY - newY;
+    const execPrice = dy / dx;
+    const slipPct = ((spot - execPrice) / spot) * 100;
+    $("amm-out").innerHTML = `Preview: Putting <strong>+${fmtInt(dx)} ONXC</strong> yields <strong>+${dy.toFixed(2)} USDC</strong> (exec $${execPrice.toFixed(3)}/ONXC, slippage <strong>${slipPct.toFixed(1)}%</strong>).`;
+
+    const svg = $("amm-svg");
+    const W = 360, H = 170, pad = 22;
+    let pts = [];
+    for (let px = 4000; px <= 26000; px += 1000) {
+      const py = k / px;
+      const sx = pad + ((px - 3000) / 24000) * (W - pad * 2);
+      const sy = H - pad - Math.min(1, py / 55000) * (H - pad * 2);
+      pts.push(`${sx.toFixed(1)},${sy.toFixed(1)}`);
+    }
+    const cx = pad + ((Math.min(26000, Math.max(4000, ammX)) - 3000) / 24000) * (W - pad * 2);
+    const cy = H - pad - Math.min(1, ammY / 55000) * (H - pad * 2);
+    svg.innerHTML = `
+      <polyline fill="none" stroke="#818cf8" stroke-width="2.5" points="${pts.join(" ")}" />
+      <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="5" fill="#22c55e" stroke="#fff" stroke-width="1.5" />
+      <text x="${pad}" y="${H - 6}" fill="#9fb0d4" font-size="10" font-family="monospace">x (ONXC) -></text>
+      <text x="${pad}" y="14" fill="#9fb0d4" font-size="10" font-family="monospace">y (USDC) | Pool point moves along x*y=k</text>
+    `;
+  }
+  $("amm-dx").addEventListener("input", renderAMM);
+  $("btn-amm-swap").addEventListener("click", () => {
+    const dx = Math.max(1, Number($("amm-dx").value) || 0);
+    const k = ammX * ammY;
+    ammX += dx;
+    ammY = k / ammX;
+    renderAMM();
+  });
+  $("btn-amm-reset").addEventListener("click", () => {
+    ammX = 10000;
+    ammY = 20000;
+    renderAMM();
+  });
+
+  // Security Reentrancy Sim
+  function resetSec() {
+    $("sec-vault").textContent = "500 ONXC";
+    $("sec-stake").textContent = "100 ONXC";
+    $("sec-loot").textContent = "0 ONXC";
+    $("sec-log").textContent = "Ready. Click Run to simulate withdraw() + malicious fallback re-entry!";
+  }
+  $("btn-sec-reset").addEventListener("click", resetSec);
+  $("btn-sec-run").addEventListener("click", () => {
+    const mode = $("sec-mode").value;
+    if (mode === "vuln") {
+      $("sec-vault").textContent = "0 ONXC (DRAINED!)";
+      $("sec-stake").textContent = "0 ONXC";
+      $("sec-loot").textContent = "500 ONXC";
+      $("sec-log").innerHTML = `<span class="badge bad">EXPLOITED!</span> Sent 100 ONXC BEFORE zeroing stake &rarr; fallback re-entered 5 times (5 &times; 100 = 500 ONXC) draining the whole vault!`;
+    } else {
+      $("sec-vault").textContent = "400 ONXC (SAFE)";
+      $("sec-stake").textContent = "0 ONXC";
+      $("sec-loot").textContent = "100 ONXC (Own Stake Only)";
+      $("sec-log").innerHTML = `<span class="badge ok">BLOCKED!</span> Stake zeroed to 0 FIRST (Checks-Effects-Interactions). Re-entry failed require(bal > 0) immediately!`;
+    }
+  });
+
+  $("btn-utxo-show").addEventListener("click", () => {
+    $("model-out").innerHTML = `<strong>Bitcoin-Style UTXO Model (Cash Bills):</strong><br/>Input: Spend 10-coin UTXO (destroyed completely)<br/>&rarr; Output #0: 3.0000 ONXC to Bob<br/>&rarr; Output #1: 6.9999 ONXC <strong>Change Output</strong> back to Alice (0.0001 fee)!`;
+  });
+  $("btn-acct-show").addEventListener("click", () => {
+    $("model-out").innerHTML = `<strong>OENEXA Account Model (Sparse Merkle Trie):</strong><br/>Before: Alice = 10.000000000 ONXC | Bob = 0 ONXC<br/>After TxTransfer(3 ONXC): Alice = 6.999999790 ONXC | Bob = 3.000000000 ONXC (Direct integer balance delta — zero change outputs needed!)`;
+  });
+
   // Boot all panels
   resetChain();
   renderAvalanche();
@@ -702,4 +783,5 @@
   initValidators();
   calcDelegation(false);
   renderPrivacy();
+  renderAMM();
 })();

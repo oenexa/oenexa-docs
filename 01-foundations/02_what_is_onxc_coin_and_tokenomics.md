@@ -16,10 +16,10 @@
 
 Every dollar splits into `100` cents. Every **ONXC** splits into **`1,000,000,000` (`10^9`)** indivisible units called **`nano-ONXC`** (`internal/core/types.go`):
 
-| Unit | Constant in Code | Exact Integer Value | Real-World Comparison |
-| :--- | :--- | :--- | :--- |
-| **`nano-ONXC`** | `NanoONXC = 1` | `1` (`0.000000001 ONXC`) | Like 1 millimeter — the exact internal unit stored in `StateDB`. |
-| **`ONXC`** | `OneONXC = 1_000_000_000` | `1,000,000,000` (`10^9`) | The human-friendly coin shown in wallets and explorers. |
+| Unit            | Constant in Code          | Exact Integer Value      | Real-World Comparison                                            |
+|:----------------|:--------------------------|:-------------------------|:-----------------------------------------------------------------|
+| **`nano-ONXC`** | `NanoONXC = 1`            | `1` (`0.000000001 ONXC`) | Like 1 millimeter — the exact internal unit stored in `StateDB`. |
+| **`ONXC`**      | `OneONXC = 1_000_000_000` | `1,000,000,000` (`10^9`) | The human-friendly coin shown in wallets and explorers.          |
 
 ### Worked Example: Converting Back and Forth
 - Alice has `2.5 ONXC` $\implies 2.5 \times 1,000,000,000 = \mathbf{2,500,000,000\text{ nano-ONXC}}$.
@@ -78,14 +78,14 @@ $$1,000,000\text{ blocks} \times 2\text{ seconds/block} = 2,000,000\text{ second
 
 ### Worked Examples Across 5 Different Block Heights
 
-| Height `h` | Formula `(h - 1) / 1,000,000` | Era | Calculation | Exact Reward (`ONXC` & `nano-ONXC`) |
-| :--- | :--- | :--- | :--- | :--- |
-| **`0`** (Genesis) | guarded `height == 0` | — | `0` | **`0 ONXC`** (Genesis allocates `10M` premine) |
-| **`1`** (First live block) | `(1 - 1) / 1,000,000 = 0` | `0` | `45 >> 0` | **`45.000000000 ONXC`** (`45,000,000,000`) |
-| **`1,000,000`** (Last of Era 0) | `(999,999) / 1,000,000 = 0` | `0` | `45 >> 0` | **`45.000000000 ONXC`** (`45,000,000,000`) |
-| **`1,000,001`** (First of Era 1) | `(1,000,000) / 1,000,000 = 1` | `1` | `45 >> 1` | **`22.500000000 ONXC`** (`22,500,000,000`) |
-| **`2,500,000`** (Mid Era 2) | `(2,499,999) / 1,000,000 = 2` | `2` | `45 >> 2` | **`11.250000000 ONXC`** (`11,250,000,000`) |
-| **`32,000,001`** (Era 32+) | `(32,000,000) / 1,000,000 = 32` | `32` | `era >= 32 -> 0` | **`0 ONXC`** (Minting finished forever!) |
+| Height `h`                       | Formula `(h - 1) / 1,000,000`   | Era  | Calculation      | Exact Reward (`ONXC` & `nano-ONXC`)            |
+|:---------------------------------|:--------------------------------|:-----|:-----------------|:-----------------------------------------------|
+| **`0`** (Genesis)                | guarded `height == 0`           | —    | `0`              | **`0 ONXC`** (Genesis allocates `10M` premine) |
+| **`1`** (First live block)       | `(1 - 1) / 1,000,000 = 0`       | `0`  | `45 >> 0`        | **`45.000000000 ONXC`** (`45,000,000,000`)     |
+| **`1,000,000`** (Last of Era 0)  | `(999,999) / 1,000,000 = 0`     | `0`  | `45 >> 0`        | **`45.000000000 ONXC`** (`45,000,000,000`)     |
+| **`1,000,001`** (First of Era 1) | `(1,000,000) / 1,000,000 = 1`   | `1`  | `45 >> 1`        | **`22.500000000 ONXC`** (`22,500,000,000`)     |
+| **`2,500,000`** (Mid Era 2)      | `(2,499,999) / 1,000,000 = 2`   | `2`  | `45 >> 2`        | **`11.250000000 ONXC`** (`11,250,000,000`)     |
+| **`32,000,001`** (Era 32+)       | `(32,000,000) / 1,000,000 = 32` | `32` | `era >= 32 -> 0` | **`0 ONXC`** (Minting finished forever!)       |
 
 ---
 
