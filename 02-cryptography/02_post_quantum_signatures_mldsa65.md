@@ -1,83 +1,109 @@
 # Chapter 4: Post-Quantum Signatures (`ML-DSA-65`) & Encrypted Keystores
 
-## 1. The Quantum Threat (Why Legacy Blockchains Have a Problem)
-
-In most classical blockchains built years ago, ownership relies on **Elliptic Curve Cryptography** (such as ECDSA or Ed25519) or **RSA**. Their security assumes a computer cannot quickly factor huge numbers or solve discrete logarithms.
-
-In 1994, mathematician Peter Shor discovered **Shor's Algorithm**. A sufficiently large **quantum computer** running Shor's algorithm solves those classical problems exponentially faster — meaning it could compute a user's **Private Key** directly from their **Public Key** in hours and drain wallets!
-
-Rather than waiting for quantum computers to break wallets and then rushing an emergency hard fork, **OENEXA builds post-quantum cryptography directly into Day 1.**
-
----
-
-## 2. How `ML-DSA-65` (FIPS 204) Protects Every ONXC Wallet
-
-OENEXA signs every transaction and every consensus block vote using **NIST FIPS 204 `ML-DSA-65`** (formerly known as CRYSTALS-Dilithium, implemented via Cloudflare's `circl/sign/mldsa/mldsa65`).
-
-### Intuitively: What Is Lattice Cryptography?
-Instead of multiplying prime numbers or jumping around elliptic curves, `ML-DSA-65` hides your secret inside a **high-dimensional geometric grid (a Euclidean lattice)** with intentional mathematical noise:
-- Problems called **Module Learning With Errors (M-LWE)** and **Module Short Integer Solution (M-SIS)** ask you to find the shortest vector or undo noisy matrix equations in hundreds of dimensions.
-- Even **quantum computers** have no known fast algorithm to solve `M-LWE` / `M-SIS`!
-
-### Exact Key & Signature Sizes in `internal/crypto/wallet.go`
-
-Post-quantum signatures are larger than classical ones, which is why OENEXA gives each block plenty of capacity:
-
-| Item | Size in Bytes | Security Level |
-| :--- | :--- | :--- |
-| **Public Key** (`PublicKeySize`) | `1,952` bytes | NIST Security Category 3 (~192-bit equivalent to AES-192) |
-| **Private Key** (`PrivateKeySize`) | `4,032` bytes | Post-quantum lattice secret vectors |
-| **Signature** (`SignatureSize`) | `3,309` bytes | Unforgeable proof that owner approved the message |
-| **Address** (`AddressSize`) | `32` bytes | `SHA-3-256(PublicKey)` |
-
-Verification is blazingly fast — roughly **77 microseconds (`0.077 ms`)** per signature — allowing OENEXA nodes to verify thousands of transactions per second.
-
-### Memory Zeroization
-When a wallet (`Wallet`) finishes running or shuts down (`wallet.Zeroize()`), OENEXA overwrites the private key bytes in RAM with zeros so memory dumps or OS swap files cannot leak secrets.
+> **Learning Objectives**
+> By the end of this chapter, you will be able to:
+> - Explain why a future quantum computer breaks classical wallets and how **lattices** protect OENEXA.
+> - Quote the exact sizes (`1,952 B`, `4,032 B`, `3,309 B`) and verify speed (`~0.077 ms`) of `ML-DSA-65`.
+> - Calculate block bandwidth/storage budgets using real post-quantum transaction sizes.
+> - Trace how **`Argon2id` + `AES-256-GCM`** protect `keystore.json` on disk and why `Wallet.Zeroize()` clears RAM.
 
 ---
 
-## 3. Protecting Keys on Disk: The Encrypted Keystore (`internal/keystore`)
+## 1. Everyday Analogy: Unbreakable Wax Seal + Maze on a Million-Axis Grid
 
-Never leave a raw `4,032`-byte private key sitting in plain text on your hard drive! OENEXA encrypts your wallet inside a JSON **keystore file** (`keystore.json`) using two heavy-duty defense layers:
+In traditional banking, you sign a check with ink. Anyone can verify it looks like your signature, though a skilled forger might try to copy it.
 
-```text
-  Your Password ("MyStrongPass!") + 16-byte Random Salt
-               |
-        Argon2id Key Derivation
-        (64 MiB RAM, 3 rounds, 4 threads)
-               v
-     32-byte AES Encryption Key
-               |
-     AES-256-GCM Authenticated Encryption (+ 12-byte IV)
-               v
-  Encrypted Private Key + Integrity Tag stored in keystore.json
+On older blockchains, signatures rely on **Elliptic Curve math** (easy to multiply points one way, nearly impossible on a classical laptop to run backward). **The catch:** In 1994, Peter Shor proved a sufficiently powerful **quantum computer** running **Shor's Algorithm** *can* run elliptic curves backward in hours and steal Private Keys directly from Public Keys!
+
+### How `ML-DSA-65` Solves This (Module Lattices)
+Imagine hiding a secret key inside a **noisy geometric maze spanning hundreds of dimensions** (**Module-LWE** and **Module-SIS** lattice problems):
+- Knowing the secret trapdoor lets you sign a message cleanly in milliseconds (`Sign`).
+- Checking your signature takes only **`~77 microseconds`** (`Verify`).
+- Even with a full-scale quantum computer, there is **no known fast algorithm** to undo the high-dimensional lattice noise!
+
+OENEXA uses **NIST FIPS 204 `ML-DSA-65`** (Category 3 quantum security, implemented with Cloudflare's `circl/sign/mldsa/mldsa65`).
+
+---
+
+## 2. Logic 1: Exact Key & Signature Sizes + Block Capacity Math
+
+Because post-quantum security protects against exponential attacks, keys and signatures are larger than legacy 32/64-byte schemes:
+
+| Component | Exact Constant in `internal/crypto/wallet.go` | Size in Bytes | Role |
+| :--- | :--- | :--- | :--- |
+| **Address** | `AddressSize` | `32` bytes | `SHA-3-256(PublicKey)` receiving ID |
+| **Public Key** | `PublicKeySize` | `1,952` bytes | Verifier attached to transaction |
+| **Private Key** | `PrivateKeySize` | `4,032` bytes | Signing secret (never leaves keystore/RAM) |
+| **Signature** | `SignatureSize` | `3,309` bytes | Unforgeable authorization stamp |
+
+### Worked Example: Transaction Size & Verification Time
+Suppose Alice sends a standard `TxTransfer`:
+- Metadata (`Version`, `Type`, `Nonce`, `From`, `To`, `Amount`, `GasLimit`, `GasPrice`, `Timestamp`): `~128` bytes
+- `PublicKey` (`1,952` B) + `Signature` (`3,309` B) = `5,261` bytes
+- **Total transaction size**: **`~5.4 KB`**
+- **Time for a validator to verify `1,000` transactions in 1 block**:
+  $$1,000 \times 0.077\text{ ms} = \mathbf{77\text{ ms}} \quad (< 4\%\text{ of OENEXA's } 2,000\text{ ms block interval!})$$
+
+### Error Example: Signature / Key Tampering
+If an attacker flips even 1 bit of a `3,309`-byte `Signature` or swaps a wrong `1,952`-byte `PublicKey`:
+- Either `len(sig) != SignatureSize` (rejected immediately),
+- Or `SHA-3-256(pubKey) != tx.From` (rejected immediately),
+- Or `mldsa65.Verify(...) == false` (transaction dropped before ever reaching Mempool).
+
+---
+
+## 3. Logic 2: Locking Your Key on Disk (`keystore.json`)
+
+Leaving a `4,032`-byte Private Key in plain text on disk means malware or an accidental cloud backup steals every coin. Instead, `internal/keystore` builds a two-stage cryptographic vault:
+
+```mermaid
+flowchart TD
+    Pwd["Your Password (e.g. 'CampusClub2026!')"] --> KDF
+    Salt["16-byte Random Salt (stops rainbow tables)"] --> KDF
+    KDF["Stage 1: Argon2id KDF\nRequires 64 MiB RAM, 3 iterations, 4 threads per guess"] -->|"32-byte Key"| AEAD
+    Priv["4,032-byte ML-DSA-65 Private Key"] --> AEAD
+    IV["12-byte Random Nonce / IV"] --> AEAD
+    AEAD["Stage 2: AES-256-GCM Encryption\nEncrypts + Computes Authentication Tag"] --> File["Saved safely into keystore.json"]
 ```
 
-### Why `Argon2id` + `AES-256-GCM`?
-1. **`Argon2id` (Password Hardening)**: Instead of using your typed password directly as an encryption key (which hackers could guess millions of times per second), `Argon2id` requires **`65,536 KiB` (`64 MiB`) of RAM** and **`3` iterations** across **`4` threads** for every single password guess. That slows brute-force cracking tools down dramatically.
-2. **`AES-256-GCM` (Symmetric Quantum-Safe AEAD)**: Symmetric ciphers are NOT broken by Shor's algorithm (`Grover's algorithm` only halves key strength, leaving `AES-256` with an ultra-strong `128-bit` quantum security margin). `GCM` mode also attaches an authentication tag so if anyone tampers with 1 bit of `keystore.json`, decryption fails immediately.
+### Why BOTH `Argon2id` AND `AES-256-GCM`? (Worked Attack Math)
+Suppose a thief steals your `keystore.json` file and tries guessing passwords:
+- Without `Argon2id` (using fast plain hashing): a single gaming GPU can try **billions** of passwords per second.
+- With OENEXA's **`Argon2id` (`memory = 65536 KiB = 64 MiB`, `time = 3`, `threads = 4`)**: *every single password guess* needs `64 MiB` of fast RAM! A hacker's cracking speed drops by orders of magnitude.
+- Meanwhile, **`AES-256-GCM`** adds two guarantees:
+  1. **Confidentiality**: Even a quantum computer running Grover's search on AES-256 still faces $2^{128}$ security (infeasible).
+  2. **Integrity**: Flipping even 1 bit of `ciphertext` inside `keystore.json` invalidates the GCM authentication tag and aborts decryption (`cipher: message authentication failed`).
 
-### Inside a Real `keystore.json` File
+### Annotated `keystore.json` Layout
 ```json
 {
   "version": 1,
-  "address": "<64-char hex SHA-3-256(pubKey)>",
+  "address": "708cfb6ffefe63cf93827aa41f1d0ca9db2f1955f6538ae3a1ceb4a1b7662740",
   "kdf": "argon2id",
-  "kdf_params": { "memory": 65536, "time": 3, "threads": 4, "salt": "<base64>" },
+  "kdf_params": { "memory": 65536, "time": 3, "threads": 4, "salt": "<base64 16B>" },
   "cipher": "aes256gcm",
-  "cipher_params": { "iv": "<base64>", "ciphertext": "<base64>" },
-  "public_key": "<base64 ML-DSA-65 public key>"
+  "cipher_params": { "iv": "<base64 12B>", "ciphertext": "<base64 encrypted privKey + 16B tag>" },
+  "public_key": "<base64 1952B ML-DSA-65 pubKey>"
 }
 ```
-Notice `"address"` and `"public_key"` are readable without your password (so `oenexa-node wallet show` can tell you your receiving address safely), while the Private Key stays locked inside `"ciphertext"`.
+Notice `"address"` and `"public_key"` stay unencrypted so `oenexa-node wallet show` can display your deposit address **without ever asking for your password or unlocking your secret key!**
 
 ---
 
-## Check Your Understanding
+## 4. Logic 3: Memory Zeroization (`Wallet.Zeroize()`)
 
-1. **Why is `ML-DSA-65` safe against quantum computers while older elliptic-curve signatures are vulnerable?**  
-   *Answer:* Shor's algorithm breaks factoring and elliptic-curve discrete logs in polynomial time on a quantum computer, whereas `ML-DSA-65` relies on high-dimensional lattice problems (`M-LWE` and `M-SIS`) for which no efficient quantum algorithm is known.
+Even after unlocking a key in memory to sign a transaction, leaving `4,032` secret bytes sitting in RAM risks leaking them into OS crash dumps or swap files. Calling `wallet.Zeroize()` actively overwrites the private key byte slice in RAM with `0x00` bytes as soon as signing completes or the CLI exits.
 
-2. **Why does OENEXA put `Argon2id` in front of `AES-256-GCM` when saving `keystore.json`?**  
-   *Answer:* Human passwords have low entropy and can be guessed quickly with GPUs/ASICs. Requiring `64 MiB` of memory per attempt via `Argon2id` makes offline password guessing enormously expensive, while `AES-256-GCM` encrypts and tamper-protects the `4,032`-byte private key.
+---
+
+## Student Practice Exercises (With Answers)
+
+1. **Exercise 1:** A friend copies your `keystore.json` onto a USB drive AND swaps two letters inside `"salt"`. When they type the *correct* password, what happens?  
+   <details><summary>Show Answer</summary>
+   Changing `"salt"` causes `Argon2id` to derive a completely different 32-byte AES key, so `AES-256-GCM` decryption fails the integrity tag check (`message authentication failed`).
+   </details>
+
+2. **Exercise 2:** How many bytes are required just for the public key + signature inside a single ONXC transaction?  
+   <details><summary>Show Answer</summary>
+   `1,952 bytes` (PublicKey) + `3,309 bytes` (Signature) = **`5,261 bytes`**.
+   </details>

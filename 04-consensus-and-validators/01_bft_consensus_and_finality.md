@@ -1,66 +1,85 @@
 # Chapter 8: BFT Consensus & Instant Finality
 
-## 1. The Agreement Problem (Byzantine Generals Analogy)
-
-Imagine 4 army generals surrounding a castle over unreliable messengers. Some generals might be loyal, while one traitor sends *"Attack!"* to General 1 and *"Retreat!"* to General 2 to cause chaos.
-
-In a blockchain network:
-- **Generals** = **Validators** running `oenexa-node` across different countries.
-- **Traitors / Crashed Servers** = **Byzantine Validators** (nodes that go offline, lag, or intentionally send conflicting votes).
-
-**Consensus** is the protocol that ensures all honest validators agree on the **exact same next block at the exact same height**, even if up to almost $1/3$ of validator power crashes or acts maliciously!
+> **Learning Objectives**
+> By the end of this chapter, you will be able to:
+> - Explain the **Byzantine Generals Problem** and compute the quorum formula $Q = \lfloor 2N/3 \rfloor + 1$.
+> - Trace all **4 consensus steps** (`StepPropose` $\to$ `StepPrevote` $\to$ `StepPrecommit` $\to$ `StepCommit`).
+> - Show how **`RoundTimeout = 4s`** recovers cleanly if the active proposer goes offline.
+> - Walk through the **`N = 4` Validator Overlap Proof** showing why forks and double-finalized blocks are mathematically impossible.
+>
+> **Try It Visually:** Open [**Visual Lab Tab 5 — BFT Consensus & Slashing Simulator**](../visual-lab/index.html#bft) to toggle honest/offline/traitor validators live!
 
 ---
 
-## 2. How OENEXA BFT Works Every 2 Seconds
+## 1. Everyday Analogy: Reaching Unbreakable Agreement With Unreliable Messengers
 
-Unlike Proof-of-Work blockchains (where miners burn electricity racing puzzles and two blocks can accidentally tie and "fork" temporarily), OENEXA uses **Byzantine Fault Tolerant (BFT) Consensus** (`internal/consensus/engine.go`):
+Imagine 4 army generals surrounding a castle. To win, the honest generals **must** agree on the exact same plan (`Attack at 08:00` vs `Wait`). **Catch:** Up to 1 general might be a traitor (sending *"Attack!"* to General A and *"Wait!"* to General B) or have a dead radio!
 
-- **`BlockInterval`**: **`2` seconds**
-- **`RoundTimeout`**: **`4` seconds** (if a proposer is offline, validators automatically move to the next round!)
-- **Proposer Selection**: Deterministic round-robin (`height % |Validators|` weighted by active validators).
-- **Quorum Threshold (`Q`)**: Strictly **more than two-thirds (`> 2/3`)** of total validator voting power:
-  $$Q = \left\lfloor \frac{2N}{3} \right\rfloor + 1$$
+In OENEXA (`internal/consensus/engine.go`):
+- **Generals** = **Active Validators** running `oenexa-node`.
+- **Traitors / Crashed Servers** = **Byzantine Validators** ($f$ faulty nodes).
+- **Supermajority Threshold (`Quorum`)**: Strictly more than two-thirds (`> 2/3`) of total validator voting power:
+  $$Q = \left\lfloor \frac{2N}{3} \right\rfloor + 1 \quad \text{tolerable up to } f = \left\lfloor \frac{N - 1}{3} \right\rfloor$$
 
-### The 4 Steps to Finalize Every Block
+### Worked Quorum Reference Table
+
+| Total Validators (`N`) | Max Faulty/Traitor (`f`) | Required Quorum (`Q = floor(2N/3) + 1`) | What Happens if `1` Extra Node Drops? |
+| :--- | :--- | :--- | :--- |
+| **`N = 4`** | **`1`** | **`3`** votes (`75%`) | If `2` go offline, only `2` remain (`< 3`): chain pauses safely instead of forking! |
+| **`N = 7`** | **`2`** | **`5`** votes (`71%`) | Up to `2` offline/Byzantine nodes cannot stop blocks. |
+| **`N = 10`** | **`3`** | **`7`** votes (`70%`) | Tolerates `3` faulty validators completely safely. |
+
+---
+
+## 2. Logic 1: Round-Robin Proposer & The 4-Step Block Loop (`2s`)
+
+Every `BlockInterval = 2 seconds`, who builds the next candidate block at height `h`?
+- **Proposer Rule**: `proposerIndex = height % len(validators)`.
+  - *Example (`N = 4` validators: V0, V1, V2, V3)*: Height `10` $\implies 10 \bmod 4 = \mathbf{2}$ (`V2` proposes); Height `11` $\implies$ `V3`; Height `12` $\implies$ `V0`.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> StepPropose: Designated Proposer builds block (mempool -> state)
-    StepPropose --> StepPrevote: Validators check ML-DSA-65 header sig, TxRoot & StateRoot
-    StepPrevote --> StepPrecommit: > 2/3 Prevotes received
-    StepPrecommit --> StepCommit: > 2/3 Precommits received -> FINALIZED (Zero Reorgs!)
-    StepCommit --> [*]: Purge mempool, increment Height, next proposer starts
+    [*] --> StepPropose: "Proposer (h % N) packs Mempool -> Block + ML-DSA-65 Sig"
+    StepPropose --> StepPrevote: "Validators verify PrevHash, GasUsed, TxRoot, StateRoot"
+    StepPrevote --> StepPrecommit: ">= Q Prevotes collected -> Broadcast Precommit"
+    StepPrecommit --> StepCommit: ">= Q Precommits collected -> Write to LevelDB (FINALIZED!)"
+    StepPropose --> RoundChange: "Proposer offline > 4s (RoundTimeout)"
+    RoundChange --> StepPropose: "Next round picks fallback proposer"
+    StepCommit --> [*]: "Purge Mempool, Height = h + 1"
 ```
 
-1. **`StepPropose`**: The proposer for height `h` gathers up to `MaxTxPerBlock = 10,000` transactions from the mempool, executes them against a snapshot of StateDB, records the new `StateRoot` and `TxRoot`, and signs the block header with its post-quantum `ML-DSA-65` key.
-2. **`StepPrevote`**: Each validator verifies the proposer's signature, parent `PrevHash` link, gas usage, and resulting `StateRoot`. If everything checks out, it broadcasts a signed **`Prevote`** for that block hash.
-3. **`StepPrecommit`**: Once a validator sees **`> 2/3` of voting power** in `Prevote` messages for the same block, it locks onto that block and broadcasts a signed **`Precommit`**.
-4. **`StepCommit`**: Once **`> 2/3` of voting power** signs `Precommit`, the block is **instantly finalized** to LevelDB! There is **never** a chain reorganization ("reorg") after commit.
+### Trace of One Healthy Round vs. Crashed Proposer
+- **Healthy Round (`~2s` total):** At height `10`, `V2` builds Block `10`, signs its header with `ML-DSA-65`, and gossips it (`/oenexa/block/1.0.0`). `V0, V1, V2, V3` all validate it and broadcast **`Prevote`** (`/oenexa/vote/1.0.0`). Reaching `>= 3` Prevotes moves everyone to **`Precommit`**. Reaching `>= 3` Precommits commits Block `10` permanently!
+- **Timeout Recovery (`RoundTimeout = 4s`):** Suppose `V2` unplugged its network cable at height `10`. After `4s` without a valid quorum, validators increment `Round: 0 -> 1` and elect the next validator (`V3`), keeping liveness alive automatically!
 
 ---
 
-## 3. Mathematical Proof: Why Two Conflicting Blocks Can NEVER Both Finalize
+## 3. Logic 2: Concrete Overlap Proof — Why Forks Are Impossible!
 
-Students always ask: *"Could two sneaky validators trick half the network into accepting Block A and the other half into accepting Block B?"*
+On older Proof-of-Work chains, two blocks at the same height can temporarily tie, forcing shops to wait "6 confirmations" (`~60 minutes`) in case a reorganization reverses payment!
 
-Let's prove from `internal/consensus/engine.go` why **forks are mathematically impossible** as long as fewer than $1/3$ of voting power cheats ($N \ge 3f + 1$, where $f$ is max malicious power and $Q = 2f + 1$):
+**On OENEXA, `1` committed block = permanent finality (`0` reorgs ever).** Let's prove it using **`N = 4` validators (`{V0, V1, V2, V3}`), max traitor `f = 1`, Quorum `Q = 3`**:
 
-1. Assume for contradiction that **both** distinct blocks $B_1$ and $B_2$ get committed at height $h$.
-2. For $B_1$ to commit, it needed a set of precommits $S_1$ with voting power $|S_1| \ge 2f + 1$.
-3. For $B_2$ to commit, it needed a set of precommits $S_2$ with voting power $|S_2| \ge 2f + 1$.
-4. How much voting power voted for **both** $B_1$ and $B_2$ (the overlap $S_1 \cap S_2$)?
-   $$|S_1 \cap S_2| \ge |S_1| + |S_2| - N \ge (2f + 1) + (2f + 1) - (3f + 1) = f + 1$$
-5. Since there are at most **$f$** dishonest validators in the whole network, an overlap of **$f + 1$** means **at least one honest validator must be in BOTH sets!**
-6. Wait — honest validators run the **Anti-Slashing High-Water Mark** (`LocalSigner.SignVote`), which strictly forbids ever signing a second vote for a different block at the same `(height, round)`!
-7. Contradiction! Therefore, **two conflicting blocks can never both commit.** Every finalized ONXC payment is 100% irreversible after 2 seconds.
+Suppose a traitor `V3` tries to trick the network into finalizing **both** conflicting blocks **$B_1$** and **$B_2$** at Height `10`:
+1. To finalize $B_1$, it must collect `Precommits` from `Q = 3` validators — say set **$S_1 = \{V_0, V_1, V_3\}$**.
+2. To finalize $B_2$, it must ALSO collect `Precommits` from `Q = 3` validators — say set **$S_2 = \{V_1, V_2, V_3\}$**.
+3. Count how many validators appear in **BOTH** $S_1$ and $S_2$:
+   $$|S_1 \cap S_2| \ge |S_1| + |S_2| - N = 3 + 3 - 4 = \mathbf{2\text{ validators}}$$
+   Notice the exact overlap: **`{V1, V3}`**!
+4. Since there is at most **`f = 1`** traitor (`V3`), **`V1` MUST BE HONEST!**
+5. Every honest validator enforces the **Anti-Slashing High-Water Mark (`LocalSigner.SignVote`)**, which strictly refuses to sign two conflicting block hashes at the same `(height = 10, round = 0)`.
+6. Therefore `V1` will NEVER sign both $B_1$ and $B_2$! **Only one block can ever reach `Q = 3` Precommits.** And if `V3` tries signing both anyway? `V3` leaves signed cryptographic evidence and loses **`10%` of its stake immediately**!
 
 ---
 
-## Check Your Understanding
+## Student Practice Exercises (With Answers)
 
-1. **If an OENEXA network has `N = 10` equal-stake validators (`1` vote each), how many validator precommits are needed to commit a block, and how many faulty validators can the network tolerate?**  
-   *Answer:* Quorum $Q = \lfloor 20 / 3 \rfloor + 1 = 7$ validators. The network stays completely safe as long as Byzantine validators $f \le 3$ (since $3f + 1 = 10$).
+1. **Exercise 1:** A testnet launches with `N = 6` equal-weight validators. What is `Quorum Q`, and how many simultaneous crashed validators `f` can the chain tolerate without halting?  
+   <details><summary>Show Answer</summary>
+   `Q = floor(2 * 6 / 3) + 1 = 4 + 1 = 5` votes needed. Max faulty `f = floor((6 - 1) / 3) = 1` validator (`6 - 1 = 5 >= 5` keeps running; if 2 crash, `4 < 5` pauses safely).
+   </details>
 
-2. **Why do you NOT need to wait "6 blocks" on OENEXA before trusting a payment?**  
-   *Answer:* Unlike probabilistic chains, BFT precommit quorum provides **instant finality** in 1 block (~2 seconds); committed blocks can never fork or roll back.
+2. **Exercise 2:** With `N = 5` validators (`V0..V4`), which validator proposes Block Height `23`?  
+   <details><summary>Show Answer</summary>
+   `23 % 5 = 3` $\implies$ **`V3`** proposes Height `23`.
+   </details>

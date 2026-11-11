@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OENEXA &amp; ONXC Visual Learning Studio</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="sha3.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <div class="brand">
+        <h1>OENEXA &amp; ONXC — Visual Learning Studio</h1>
+        <p>Interactive beginner sandbox running genuine FIPS 202 <code>SHA-3-256</code> &amp; exact <code>oenexa-node</code> rules</p>
+      </div>
+      <nav class="pill-bar" id="nav-tabs" aria-label="Learning Modules">
+        <button class="tab-btn active" data-tab="blockchain">1. Blockchain &amp; Hash</button>
+        <button class="tab-btn" data-tab="tokenomics">2. ONXC Tokenomics</button>
+        <button class="tab-btn" data-tab="fees">3. Mempool &amp; Gas</button>
+        <button class="tab-btn" data-tab="trie">4. Merkle Trie</button>
+        <button class="tab-btn" data-tab="bft">5. BFT &amp; Staking</button>
+        <button class="tab-btn" data-tab="privacy">6. Privacy &amp; VM</button>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1. BLOCKCHAIN & HASHING -->
+    <section class="panel active" id="tab-blockchain">
+      <div class="callout">
+        <strong>Beginner Rule:</strong> Every block links backward via <code>PrevHash = SHA-3-256(Previous Block Header)</code>. Change even 1 character inside an old transaction and watch the <strong>Avalanche Effect</strong> turn that block and every block after it <span class="badge bad">BROKEN</span>!
+      </div>
+
+      <div class="card">
+        <h2>Interactive 4-Block Tamper Simulator</h2>
+        <p class="muted">Try changing <code>250 ONXC</code> to <code>999 ONXC</code> in <strong>Block 1</strong>. Notice how Blocks 1, 2, and 3 immediately turn red because their fingerprints no longer match!</p>
+        <div class="chain-row" id="chain-container"></div>
+        <div class="btn-row">
+          <button class="action" id="btn-reseal-chain">Re-seal All Blocks (Honest Consensus)</button>
+          <button class="action secondary" id="btn-reset-chain">Reset Clean Example</button>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>SHA-3-256 Avalanche Visualizer (256 Bits)</h3>
+          <label for="av-a">Input A</label>
+          <input type="text" id="av-a" value="Alice -> Bob: 250 ONXC" />
+          <div class="mono-box" id="av-hash-a" style="margin-top:6px;"></div>
+
+          <label for="av-b" style="margin-top:12px;">Input B (change 1 tiny letter or number)</label>
+          <input type="text" id="av-b" value="Alice -> Bob: 251 ONXC" />
+          <div class="mono-box" id="av-hash-b" style="margin-top:6px;"></div>
+
+          <p style="margin:10px 0 4px;">Bit Difference: <strong id="av-diff-pct">0%</strong> (<span id="av-diff-count">0</span> / 256 bits flipped)</p>
+          <div class="bit-strip" id="av-bit-strip" title="Amber square = bit flipped between A and B"></div>
+        </div>
+
+        <div class="card">
+          <h3>Wallet Address Deriver (<code>HexToAddress</code>)</h3>
+          <p class="muted">In <code>internal/crypto/wallet.go</code>, your <code>1,952</code>-byte <code>ML-DSA-65</code> public key is hashed with <code>SHA-3-256</code> to create your <code>32</code>-byte address.</p>
+          <label for="pk-seed">Simulated Public Key Input</label>
+          <input type="text" id="pk-seed" value="AlicePubKey1952" />
+          <label style="margin-top:10px;">Canonical ONXC Format (<code>onxc...</code>)</label>
+          <div class="mono-box" id="addr-onxc"></div>
+          <label style="margin-top:10px;">Web3 Hex Format (<code>0x...</code>)</label>
+          <div class="mono-box" id="addr-0x"></div>
+          <label style="margin-top:10px;">Bare 64-Hex Format</label>
+          <div class="mono-box" id="addr-bare"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. ONXC TOKENOMICS -->
+    <section class="panel" id="tab-tokenomics">
+      <div class="callout">
+        <strong>Beginner Rule:</strong> All balances in OENEXA are stored as exact <code>uint64</code> integers in <code>nano-ONXC</code> ($1\text{ ONXC} = 10^9\text{ nano-ONXC}$). Block rewards start at <code>45 ONXC</code> and halve every <code>1,000,000</code> blocks, mathematically capping total supply at <code>100,000,000 ONXC</code> forever.
+      </div>
+
+      <div class="card">
+        <h2>Interactive Halving &amp; Hard-Cap Explorer (<code>internal/core/tokenomics.go</code>)</h2>
+        <label for="height-slider">Drag Block Height: <strong id="tok-height-label">1</strong></label>
+        <input type="range" id="height-slider" min="0" max="8000000" step="50000" value="1" />
+        <div class="btn-row">
+          <button class="action secondary preset-h" data-h="0">Height 0 (Genesis)</button>
+          <button class="action secondary preset-h" data-h="1">Height 1 (Era 0)</button>
+          <button class="action secondary preset-h" data-h="1000000">1,000,000 (End Era 0)</button>
+          <button class="action secondary preset-h" data-h="1000001">1,000,001 (Era 1)</button>
+          <button class="action secondary preset-h" data-h="2500000">2,500,000 (Era 2)</button>
+          <button class="action secondary preset-h" data-h="32000001">32M+ (Post-Emission)</button>
+        </div>
+
+        <div class="stat-grid">
+          <div class="stat"><div class="k">Halving Era</div><div class="v" id="tok-era">0</div></div>
+          <div class="stat"><div class="k">Block Reward</div><div class="v" id="tok-reward">45 ONXC</div></div>
+          <div class="stat"><div class="k">Emitted Rewards</div><div class="v" id="tok-emitted">45 ONXC</div></div>
+          <div class="stat"><div class="k">Circulating Supply</div><div class="v" id="tok-circ">10,000,045 ONXC</div></div>
+          <div class="stat"><div class="k">Time From Genesis</div><div class="v" id="tok-days">2 sec</div></div>
+        </div>
+
+        <label>Circulating Supply vs. <code>100,000,000 ONXC</code> Hard Cap</label>
+        <div class="bar-wrap" title="Supply breakdown out of 100M ONXC">
+          <div class="bar-seg" id="bar-treasury" style="width:5%; background:#38bdf8;" title="Treasury 5M (5%)"></div>
+          <div class="bar-seg" id="bar-liquidity" style="width:3%; background:#818cf8;" title="Liquidity 3M (3%)"></div>
+          <div class="bar-seg" id="bar-staking" style="width:2%; background:#a855f7;" title="Staking Bootstrap 2M (2%)"></div>
+          <div class="bar-seg" id="bar-emitted" style="width:0%; background:#22c55e;" title="Emitted Validator Rewards"></div>
+        </div>
+        <p class="muted">Cyan: 5M Treasury | Indigo: 3M Liquidity | Purple: 2M Staking Bootstrap | Green: Validator Block Rewards (max 90M)</p>
+
+        <svg id="tok-svg" viewBox="0 0 720 180" class="trie-svg" aria-label="ONXC supply curve"></svg>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>ONXC &harr; <code>nano-ONXC</code> Unit Converter</h3>
+          <label for="conv-onxc">Human ONXC</label>
+          <input type="text" id="conv-onxc" value="2.5" />
+          <label for="conv-nano" style="margin-top:10px;">Exact Chain <code>nano-ONXC</code> (<code>uint64</code>)</label>
+          <input type="text" id="conv-nano" value="2500000000" />
+          <div class="callout" style="margin-top:12px; margin-bottom:0;">
+            <strong>Why no decimals on-chain?</strong> In IEEE-754 floating point, <code>0.1 + 0.2 = <span id="float-bug"></span></code>! Using integer <code>nano-ONXC</code> guarantees exact bit-for-bit equality across all nodes.
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Live <code>StakingYieldEstimate</code> Calculator</h3>
+          <label for="stake-ratio">Network Staked Ratio: <strong id="stake-ratio-lbl">67%</strong></label>
+          <input type="range" id="stake-ratio" min="10" max="95" value="67" />
+          <div class="stat-grid">
+            <div class="stat"><div class="k">Annual Emission</div><div class="v" id="apy-annual">-</div></div>
+            <div class="stat"><div class="k">Total Staked ONXC</div><div class="v" id="apy-staked">-</div></div>
+            <div class="stat"><div class="k">Estimated Staking APY</div><div class="v" id="apy-pct">-</div></div>
+          </div>
+          <p class="muted">Formula: <code>(BlockReward(h) * 15,778,800 blocks/yr) / (CirculatingSupply(h) * stakedRatio)</code></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. MEMPOOL & GAS -->
+    <section class="panel" id="tab-fees">
+      <div class="callout">
+        <strong>Beginner Rule:</strong> OENEXA adjusts <code>BaseFee</code> automatically toward a <code>50%</code> target block fullness (<code>250,000,000</code> gas out of <code>500,000,000</code>). Base fees are <strong>burned</strong> forever; only <code>PriorityTip</code> goes to the validator!
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>EIP-1559 <code>NextBaseFee</code> Elasticity Simulator</h3>
+          <p class="muted">Current Block <code>BaseFee</code>: <strong id="fee-cur">10</strong> <code>nano-ONXC/gas</code></p>
+          <label for="gas-used-slider">Block Gas Used: <strong id="gas-used-lbl">250,000,000 (50%)</strong></label>
+          <input type="range" id="gas-used-slider" min="0" max="500000000" step="25000000" value="250000000" />
+          <div class="bar-wrap">
+            <div class="bar-seg" id="gas-util-bar" style="width:50%; background:#22c55e;"></div>
+          </div>
+          <div class="stat-grid">
+            <div class="stat"><div class="k">Predicted NextBaseFee</div><div class="v" id="fee-next">10</div></div>
+            <div class="stat"><div class="k">Block Change</div><div class="v" id="fee-delta">0 (0.0%)</div></div>
+          </div>
+          <div class="btn-row">
+            <button class="action" id="btn-apply-block">Apply Block -&gt; Advance</button>
+            <button class="action secondary" id="btn-spam-5">Simulate 5 Full Blocks (Spam)</button>
+            <button class="action secondary" id="btn-fee-reset">Reset BaseFee = 10</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Fee Breakdown Calculator (Burn vs. Validator Tip)</h3>
+          <label for="tx-type-select">Transaction Type</label>
+          <select id="tx-type-select">
+            <option value="21">TxTransfer (0x01) — 21 gas</option>
+            <option value="50">TxShield (0x06) — 50 gas</option>
+            <option value="100">TxUnshield (0x07) — 100 gas</option>
+            <option value="150">TxShieldedTransfer (0x08) — 150 gas</option>
+            <option value="500">TxCall (0x03) — 500 gas</option>
+            <option value="5000">TxDeploy (0x02) — 5,000 gas</option>
+          </select>
+          <label for="fee-tier-select" style="margin-top:10px;">Urgency Tier (<code>onxc_feeEstimate</code>)</label>
+          <select id="fee-tier-select">
+            <option value="ultra">UltraLow (tip = 0)</option>
+            <option value="standard">Standard (tip = 10% of BaseFee, min 1)</option>
+            <option value="fast">Fast (tip = 50% of BaseFee, min 1)</option>
+          </select>
+          <div class="stat-grid">
+            <div class="stat"><div class="k">Burned (BaseFee &times; Gas)</div><div class="v" id="calc-burn">210 nano-ONXC</div></div>
+            <div class="stat"><div class="k">Validator Tip</div><div class="v" id="calc-tip">0 nano-ONXC</div></div>
+            <div class="stat"><div class="k">Total ONXC / USD (@$1)</div><div class="v" id="calc-total">0.000000210</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Interactive Mempool Priority Max-Heap (Sorted by Highest <code>GasPrice</code>, Earliest <code>Timestamp</code>)</h3>
+        <div class="grid-2">
+          <div>
+            <div class="grid-3">
+              <div>
+                <label for="mp-sender">Sender</label>
+                <select id="mp-sender">
+                  <option value="Alice">Alice</option>
+                  <option value="Bob">Bob</option>
+                  <option value="Carol">Carol</option>
+                  <option value="Dave">Dave</option>
+                </select>
+              </div>
+              <div>
+                <label for="mp-price">GasPrice (nano-ONXC)</label>
+                <input type="number" id="mp-price" min="1" value="15" />
+              </div>
+              <div>
+                <label for="mp-gas">GasLimit</label>
+                <input type="number" id="mp-gas" min="21" value="21" />
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="action" id="btn-mp-add">Submit to Mempool</button>
+              <button class="action secondary" id="btn-mp-block">Pack Next Block (Top Txs)</button>
+              <button class="action secondary" id="btn-mp-reset">Reset Sample Queue</button>
+            </div>
+            <p class="muted" id="mp-msg" style="margin-top:8px;"></p>
+          </div>
+          <div>
+            <label>Live Mempool Queue (Top item boards first)</label>
+            <div class="queue-list" id="mp-queue"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. SPARSE MERKLE TRIE -->
+    <section class="panel" id="tab-trie">
+      <div class="callout">
+        <strong>Beginner Rule:</strong> In OENEXA's <code>256</code>-bit Sparse Merkle Trie (<code>internal/mpt/mpt.go</code>), every account address has a fixed bit-path. Empty slots collapse to <code>zeroHash</code>, and updating accounts in <em>any</em> order gives the exact same <code>StateRoot</code>!
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Interactive Accounts &amp; Merkle Proof Generator</h3>
+          <div class="grid-2">
+            <div>
+              <label>Alice (bits <code>00...</code>) ONXC Balance</label>
+              <input type="number" id="smt-alice" value="500" min="0" />
+            </div>
+            <div>
+              <label>Bob (bits <code>01...</code>) ONXC Balance</label>
+              <input type="number" id="smt-bob" value="250" min="0" />
+            </div>
+            <div>
+              <label>Carol (bits <code>10...</code>) ONXC Balance</label>
+              <input type="number" id="smt-carol" value="100" min="0" />
+            </div>
+            <div>
+              <label>Dave (bits <code>11...</code>)</label>
+              <select id="smt-dave">
+                <option value="0">Empty (zeroHash Non-Membership)</option>
+                <option value="75">Active: 75 ONXC</option>
+              </select>
+            </div>
+          </div>
+          <div class="btn-row">
+            <button class="action" data-proof="alice">Show Proof for Alice</button>
+            <button class="action secondary" data-proof="bob">Proof for Bob</button>
+            <button class="action secondary" data-proof="dave">Check Dave Proof</button>
+            <button class="action secondary" id="btn-smt-order">Test Order Independence</button>
+          </div>
+          <div class="mono-box" id="smt-proof-out" style="margin-top:12px;">Click a "Proof" button above to highlight the exact ~2 sibling hashes needed to prove that leaf!</div>
+        </div>
+
+        <div class="card">
+          <h3>Live Cryptographic Merkle Tree (Real <code>SHA-3-256</code> Prefixes)</h3>
+          <svg id="smt-svg" viewBox="0 0 640 310" class="trie-svg" aria-label="Sparse Merkle Trie visual diagram"></svg>
+          <p class="muted" style="margin-top:8px;">Green = target account leaf | Amber = sibling proof hashes sent to light wallet | Cyan = recomputed path to <code>StateRoot</code>.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. BFT CONSENSUS & STAKING -->
+    <section class="panel" id="tab-bft">
+      <div class="callout">
+        <strong>Beginner Rule:</strong> OENEXA BFT finalizes a block in ~2 seconds when strictly more than two-thirds ($Q = \lfloor 2N/3 \rfloor + 1$) of validator voting power signs <code>Prevote</code> and <code>Precommit</code>. Double-signing automatically triggers <strong>10% Equivocation Slashing</strong>!
+      </div>
+
+      <div class="card">
+        <h2>Interactive BFT Consensus &amp; Slashing Round Simulator (Block Height <span id="bft-h">10</span>)</h2>
+        <div class="grid-3">
+          <div>
+            <label for="bft-n">Active Validators (<code>N</code>): <strong id="bft-n-lbl">4</strong></label>
+            <input type="range" id="bft-n" min="4" max="10" value="4" />
+          </div>
+          <div class="stat"><div class="k">Quorum Required (<code>Q</code>)</div><div class="v" id="bft-q">3 / 4</div></div>
+          <div class="stat"><div class="k">Max Faulty Tolerated (<code>f</code>)</div><div class="v" id="bft-f">1</div></div>
+        </div>
+        <p class="muted">Click any validator card below to cycle status: <strong>Honest</strong> &rarr; <strong>Offline</strong> &rarr; <strong>Double-Sign (Byzantine)</strong>.</p>
+        <div class="val-grid" id="bft-vals"></div>
+
+        <div class="stat-grid">
+          <div class="stat"><div class="k">Current Step</div><div class="v" id="bft-step">Ready</div></div>
+          <div class="stat"><div class="k">Prevotes</div><div class="v" id="bft-pv">0</div></div>
+          <div class="stat"><div class="k">Precommits</div><div class="v" id="bft-pc">0</div></div>
+          <div class="stat"><div class="k">Finality Status</div><div class="v" id="bft-status">Waiting</div></div>
+        </div>
+        <div class="btn-row">
+          <button class="action" id="btn-bft-next">Next BFT Step &rarr;</button>
+          <button class="action secondary" id="btn-bft-reset">New Block Height</button>
+        </div>
+        <div class="mono-box" id="bft-log" style="margin-top:10px;"></div>
+      </div>
+
+      <div class="card">
+        <h3>Delegated Staking Commission &amp; Pro-Rata Split Simulator (<code>internal/consensus/delegation.go</code>)</h3>
+        <div class="grid-3">
+          <div><label>Validator Self-Stake (ONXC)</label><input type="number" id="del-self" value="7000" min="0" /></div>
+          <div><label>Student Alice Delegation (ONXC)</label><input type="number" id="del-a" value="2000" min="0" /></div>
+          <div><label>Student Bob Delegation (ONXC)</label><input type="number" id="del-b" value="1000" min="0" /></div>
+        </div>
+        <div class="grid-2" style="margin-top:10px;">
+          <div><label>Commission (bps: 500 = 5%)</label><input type="number" id="del-bps" value="500" min="0" max="10000" /></div>
+          <div><label>Gross Reward Pool to Distribute (ONXC)</label><input type="number" id="del-rew" value="100" min="0" /></div>
+        </div>
+        <div class="btn-row">
+          <button class="action" id="btn-del-reward">Calculate Exact Payout Split</button>
+          <button class="action danger" id="btn-del-slash">Simulate 10% Equivocation Slash</button>
+        </div>
+        <div class="mono-box" id="del-out" style="margin-top:10px;"></div>
+      </div>
+    </section>
+
+    <!-- 6. PRIVACY & OENEXAVM -->
+    <section class="panel" id="tab-privacy">
+      <div class="callout">
+        <strong>Beginner Rule:</strong> OENEXA separates balances into a public <strong>Transparent Pool</strong> and a private <strong>Shielded Pool</strong>. The <strong>Turnstile</strong> mathematically guarantees <code>Transparent + Shielded == TotalSupply</code> at every moment!
+      </div>
+
+      <div class="card">
+        <h2>Interactive Dual-Pool Turnstile &amp; Anti-Double-Spend Nullifier Lab</h2>
+        <div class="stat-grid">
+          <div class="stat"><div class="k">Transparent Pool</div><div class="v" id="priv-trans">1,000 ONXC</div></div>
+          <div class="stat"><div class="k">Shielded Pool</div><div class="v" id="priv-shield">0 ONXC</div></div>
+          <div class="stat"><div class="k">Total Supply (Locked)</div><div class="v" id="priv-total">1,000 ONXC</div></div>
+          <div class="stat"><div class="k">Turnstile Invariant</div><div class="v" id="priv-inv"><span class="badge ok">CONSERVED</span></div></div>
+        </div>
+
+        <div class="grid-2">
+          <div>
+            <label for="priv-amt">Amount (ONXC)</label>
+            <input type="number" id="priv-amt" value="250" min="1" max="1000" />
+            <div class="btn-row">
+              <button class="action" id="btn-tx-shield">TxShield (Public &rarr; Private Note)</button>
+              <button class="action secondary" id="btn-tx-priv">TxShieldedTransfer (Note &rarr; Note)</button>
+              <button class="action secondary" id="btn-tx-unshield">TxUnshield (Note &rarr; Public)</button>
+              <button class="action danger" id="btn-tx-doublespend">Replay Spent Nullifier!</button>
+              <button class="action secondary" id="btn-priv-reset">Reset Pool</button>
+            </div>
+            <div class="mono-box" id="priv-event" style="margin-top:10px;">Ready. Click TxShield to mint your first sealed private note!</div>
+          </div>
+          <div>
+            <label>Active Notes &amp; Spent <code>NullifierSet</code> (<code>SHA-3-256</code>)</label>
+            <div class="queue-list" id="priv-notes"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>OenexaVM Sandbox Execution Stepper (<code>TxCall</code> vs. Read-Only <code>onxc_call</code>)</h3>
+        <div class="grid-3">
+          <div>
+            <label>Execution Mode</label>
+            <select id="vm-mode">
+              <option value="write">TxCall (State-Changing Transaction)</option>
+              <option value="readonly">onxc_call (ReadOnly Dry-Run Query)</option>
+            </select>
+          </div>
+          <div>
+            <label>GasLimit</label>
+            <input type="number" id="vm-gaslimit" value="1000" min="100" />
+          </div>
+          <div>
+            <label>Contract Action</label>
+            <select id="vm-action">
+              <option value="inc">Increment Counter (oen_get + oen_set: 450 gas)</option>
+              <option value="loop">Heavy Loop (1,500 gas &mdash; triggers Out-Of-Gas if limit &lt; 1500!)</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="action" id="btn-vm-run">Execute inside OenexaVM Sandbox</button>
+        </div>
+        <div class="mono-box" id="vm-out" style="margin-top:10px;">Committed Counter Slot #0 = 5 | Click Execute to trace host ABI calls!</div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    OENEXA &amp; ONXC Student Visual Learning Studio — Powered offline by pure-JS FIPS 202 <code>SHA-3-256</code> matching <code>oenexa-node</code> constants.
+  </footer>
+</body>
+</html>

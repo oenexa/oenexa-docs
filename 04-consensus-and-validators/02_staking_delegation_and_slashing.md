@@ -1,62 +1,91 @@
 # Chapter 9: Staking, Delegation & Slashing
 
-## 1. Security Through Skin in the Game
-
-Why don't validators cheat by voting for fake blocks? Because to participate in BFT consensus, validators lock up real economic value (**ONXC Stake**).
-
-- **Be Honest**: Earn block subsidies (`BlockReward` — `45 ONXC` in Era 0) plus user `PriorityTip` fees.
-- **Cheat / Equivocate**: Get **slashed** — lose a permanent chunk of your staked ONXC and get removed from voting!
+> **Learning Objectives**
+> By the end of this chapter, you will be able to:
+> - Explain why validators lock **ONXC collateral** ("skin in the game").
+> - Distinguish **Validators** from everyday **Delegators** (`MinDelegationAmount = 0.001 ONXC`).
+> - Compute **Commission + Pro-Rata Delegator Rewards** with exact numbers.
+> - Trace the **Unbonding Queue** delay and why **`10%` Equivocation Slashing** applies to both self-stake and delegators.
+>
+> **Try It Visually:** Open [**Visual Lab Tab 5 — Delegated Staking & Slashing Calculator**](../visual-lab/index.html#bft) to split rewards and trigger 10% slashes live!
 
 ---
 
-## 2. Validators vs. Delegators
+## 1. Everyday Analogy: Security Deposit for Honest Judges
 
-Not everyone wants to run a 24/7 server in a data center. OENEXA (`internal/consensus/delegation.go`) supports **Delegated Staking** so ordinary ONXC holders can still help secure the network and earn yield:
+Imagine hiring security guards for a vault: if a guard walks away empty-handed after robbing the vault, there is no financial deterrent. Instead, every guard deposits a big **security bond** inside a locked safe before putting on a uniform:
+- **Guard does a great job:** Earns steady pay (`BlockReward` + `PriorityTip` fees).
+- **Guard cheats (double-signs conflicting blocks):** The safe automatically burns **`10%` of their deposit** and revokes their badge!
 
-- **Validator**: Operates an always-on `oenexa-node`, proposes blocks, signs BFT votes with an `ML-DSA-65` key, and sets a small **Commission** (default **`500 bps = 5%`**, configurable via `DefaultCommissionBps`).
-- **Delegator**: Any ONXC holder who locks at least **`MinDelegationAmount = 1,000,000 nano-ONXC`** (`0.001 ONXC`) behind a trusted validator. The validator's voting power increases proportionally to the total delegated stake, and rewards flow back to delegators minus the validator's commission.
+---
 
-### How Delegation Flow Works
+## 2. Logic 1: Validators vs. Delegators (`internal/consensus/delegation.go`)
+
+Not every ONXC holder wants to run a 24/7 server. OENEXA lets everyday users **delegate** ONXC to a validator and share rewards:
 
 ```mermaid
 flowchart LR
-    Holder["ONXC Holder\n(Minimum 1,000,000 nano-ONXC)"] -->|"Delegate(TxStake)"| Val["Validator Node\n(+Voting Power)"]
-    Val -->|"Proposes & Signs BFT Blocks"| Net["OENEXA Chain"]
-    Net -->|"BlockReward + Tips"| Val
-    Val -->|"95% Rewards (example 5% commission)"| Holder
-    Holder -->|"Undelegate(TxUnstake) -> Unbonding Delay"| Liquid["Liquid ONXC Returned"]
+    U1["Alice delegates 2,000 ONXC\n(min 1,000,000 nano-ONXC = 0.001 ONXC)"] --> Pool["Validator Pool\nTotal Stake = Self + Delegations\n= 10,000 ONXC"]
+    U2["Bob delegates 1,000 ONXC"] --> Pool
+    Self["Validator Self-Stake\n7,000 ONXC"] --> Pool
+    Pool -->|"Earns 100 ONXC Rewards"| Split["5% Commission (500 bps) -> Validator\n95% Net Pool -> Split by Stake Share"]
 ```
 
----
-
-## 3. Why Is There an Unbonding Delay?
-
-If a cheating validator could double-sign two conflicting blocks at 12:00:00 and withdraw 100% of their stake at 12:00:02 before anyone noticed, slashing would have no teeth!
-
-Therefore, when you call `Undelegate` / `TxUnstake`, funds enter an **Unbonding Period** before becoming spendable again (`DefaultUnbondingDelayBlocks = 100` in the delegation manager test/core unit configuration, and `43,200` blocks $\approx 24\text{ hours}$ reported for mainnet RPC parameter in `onxc_getStakingInfo`):
-- During unbonding, your stake **stops earning new rewards** and waits out the challenge window so any fraud evidence from prior blocks can still slash that stake.
-- Once `currentHeight >= ReleaseHeight`, calling withdrawal moves the exact unlocked `nano-ONXC` back to your liquid balance.
+- **Minimum Delegation**: **`MinDelegationAmount = 1,000,000 nano-ONXC`** (`0.001 ONXC`). Trying to delegate `500,000 nano-ONXC` returns an error immediately.
+- **Exact Conservation Invariant**:
+  $$\text{Validator.TotalStake} \equiv \text{SelfStake} + \sum_{d} \text{Delegation}_d$$
+  Staking never inflates or duplicates principal balances; delegated ONXC moves strictly from liquid balance into locked stake.
 
 ---
 
-## 4. Stake Conservation & Slashing Rules
+## 3. Logic 2: Worked Reward Split Example (Commission + Pro-Rata Payout)
 
-From `internal/consensus/delegation.go` and `engine.go`:
+Suppose a validator's pool totals **`10,000 ONXC`** and configures **`DefaultCommissionBps = 500`** (`500 / 10,000 = 5%` commission):
+- Validator Self-Stake: **`7,000 ONXC`** (`70%` of pool)
+- Alice's Delegation: **`2,000 ONXC`** (`20%` of pool)
+- Bob's Delegation: **`1,000 ONXC`** (`10%` of pool)
 
-1. **Exact Conservation Invariant**:
-   $$\text{Validator.Stake} = \text{SelfStake} + \sum \text{ActiveDelegations}$$
-   Delegated tokens are never duplicated or forged; `Stake` tracks the exact sum across every delegator entry.
-2. **Equivocation Slashing (10% Penalty)**:
-   If a validator signs two different blocks/votes at the exact same `(height, round)`:
-   - The evidence triggers slashing inside `consensus/engine.go`: **10% of the validator's stake is deducted/slashed** (`slashAmount = val.Stake / 10`), and their voting power is updated/revoked so they cannot endanger the network.
-   - Delegators share the slashing proportion with the validator they picked — which incentivizes students and investors to delegate to honest, well-secured validators!
+Now suppose this pool earns **`100 ONXC`** in gross rewards:
+1. **Step 1 — Validator Operator Commission (`5%` of `100 ONXC`)**:
+   $$R_{\text{comm}} = \left\lfloor \frac{100 \times 500}{10,000} \right\rfloor = \mathbf{5\text{ ONXC}}$$
+2. **Step 2 — Remaining Net Reward Pool (`100 - 5`)**:
+   $$R_{\text{net}} = \mathbf{95\text{ ONXC}}$$
+3. **Step 3 — Pro-Rata Share Based on Exact Pool Weight**:
+   - Validator self-stake (`7,000 / 10,000 = 70%`): $\lfloor 95 \times 0.70 \rfloor = \mathbf{66.5\text{ ONXC}}$ (+ `5` commission = **`71.5 ONXC total`**)
+   - Alice (`2,000 / 10,000 = 20%`): $95 \times 0.20 = \mathbf{19.0\text{ ONXC}}$
+   - Bob (`1,000 / 10,000 = 10%`): $95 \times 0.10 = \mathbf{9.5\text{ ONXC}}$
+4. **Solvency Check**: `71.5 + 19.0 + 9.5 = 100.0 ONXC` (zero extra inflation; any `1`-nano integer floor dust stays unminted!).
 
 ---
 
-## Check Your Understanding
+## 4. Logic 3: Unbonding Delay & `10%` Equivocation Slashing
 
-1. **If a validator earns `100 ONXC` in rewards with `DefaultCommissionBps = 500` (`5%`), how much goes to the validator's commission and how much is distributed to the stake pool?**  
-   *Answer:* `500 bps = 5%`, so `5 ONXC` is the validator's commission and `95 ONXC` is distributed proportionally across stakers.
+### Why Cannot Stakers Withdraw Instantly? (Worked Unbonding Timeline)
+Suppose Alice calls **`TxUnstake`** (`Undelegate`) for `2,000 ONXC` at Block Height `500`:
+1. At Height `500`, Alice's `2,000 ONXC` **stops earning rewards** immediately and enters the **Unbonding Queue** with a target `ReleaseHeight` (`DefaultUnbondingDelayBlocks = 100` in core delegation unit config; `43,200` blocks $\approx 24\text{h}$ mainnet parameter reported by `onxc_getStakingInfo`).
+2. Suppose at Height `510` (while Alice is still waiting in unbonding!), evidence arrives that the validator double-signed conflicting votes at Height `495`.
+3. **Slashing fires!** Because of the unbonding delay, Alice couldn't sneak out at Height `501` before the fraud proof landed.
 
-2. **Why must unstaking wait for an unbonding delay instead of returning coins immediately?**  
-   *Answer:* To prevent a malicious validator from double-signing an attack and withdrawing their collateral before the network processes the equivocation slashing proof.
+### Worked Slashing Calculation (`10%` Penalty)
+Recall our `10,000 ONXC` pool (`7,000` Validator, `2,000` Alice, `1,000` Bob) when the validator signs two conflicting blocks at the exact same `(height, round)`:
+- **Total Slashed (`val.Stake / 10`)**: `1,000 ONXC` permanently removed!
+- Validator Self-Stake loses `10%`: `7,000 - 700` $\implies$ **`6,300 ONXC`**
+- Alice loses `10%`: `2,000 - 200` $\implies$ **`1,800 ONXC`**
+- Bob loses `10%`: `1,000 - 100` $\implies$ **`900 ONXC`**
+- Validator's voting power is revoked/updated so the attacker cannot disrupt future rounds.
+
+Notice **why delegators share slashing risk**: it forces delegators to pick honest, well-secured validators rather than blindly delegating to reckless operators!
+
+---
+
+## Student Practice Exercises (With Answers)
+
+1. **Exercise 1 (Minimum Delegation Check):** Carol wants to test delegation using `500,000 nano-ONXC` (`0.0005 ONXC`). Will `Delegate` accept or reject it?  
+   <details><summary>Show Answer</summary>
+   **Reject!** `MinDelegationAmount = 1,000,000 nano-ONXC` (`0.001 ONXC`), so `500,000` is below the minimum threshold.
+   </details>
+
+2. **Exercise 2 (Reward Conservation):** If a validator sets `CommissionBps = 1000` (`10%`) and earns `200 ONXC` gross, how much goes directly to commission and how much enters the pro-rata pool?  
+   <details><summary>Show Answer</summary>
+   Commission = `200 * 1000 / 10,000 = 20 ONXC`. Remaining net pool distributed pro-rata = `200 - 20 = 180 ONXC`.
+   </details>

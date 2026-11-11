@@ -1,110 +1,133 @@
 # Chapter 1: What Is a Blockchain & What Is OENEXA?
 
-## 1. Starting From Zero: The Shared Notebook Analogy
-
-Imagine five students share a small group expense fund. Instead of letting just **one** person hold the notebook (what if that person loses it, or secretly adds `+100` to their own page?), all **five students keep an identical copy** of the notebook.
-
-Whenever Alice wants to pay Bob `10` coins:
-1. Alice announces the payment to everyone and signs it with an unforgeable personal seal.
-2. All five students check: *"Does Alice actually have `10` coins? Is her seal real?"*
-3. Once a supermajority agrees, **every student writes the transaction onto the next numbered page** of their notebook at the same time.
-
-That shared, tamper-proof notebook is a **blockchain**:
-- **Block** = One numbered page of verified transactions.
-- **Chain** = Each page includes a mathematical fingerprint (hash) of the *previous* page, linking every page together in order from Page `0` (Genesis) forward.
-
-If a cheater tries to erase a number on Page `4`, Page `4`'s fingerprint changes — which breaks the link written at the top of Page `5`, Page `6`, and every page after it. Everyone immediately spots the forgery!
+> **Learning Objectives**
+> By the end of this chapter, you will be able to:
+> - Explain what a blockchain is without technical jargon.
+> - Show with a real hash example why tampering with an old block breaks the chain.
+> - Distinguish **Layer-1 (`OENEXA`)**, **Native Currency (`ONXC`)**, and **Layer-2 (`Rollups`)**.
+> - Trace how the major folders inside `oenexa-node` connect together.
+>
+> **Try It Visually:** Open [**Visual Lab Tab 1 — Blockchain & Hash Simulator**](../visual-lab/index.html#blockchain) while reading this chapter!
 
 ---
 
-## 2. Why Do We Need Decentralized Networks?
+## 1. Everyday Analogy: The Shared Classroom Notebook
 
-In traditional digital money:
-- A central bank or company database decides your balance.
-- Servers can go offline, freeze accounts, or be hacked at a single point of failure.
-- Cryptography in legacy systems also relies on math that future **quantum computers** could break.
+Imagine five students — Alice, Bob, Carol, Dave, and Eve — share a club fund of `1,000 ONXC`.
 
-**OENEXA** (*the blockchain platform*) solves this by creating a **sovereign Layer-1 blockchain** — meaning it does not borrow security from any other blockchain. Every node independently validates every transaction, block, smart contract, and supply rule.
+### Option A: The Centralized Notebook (Traditional Bank / Database)
+Only **one student** holds the notebook at home.
+- **Problem 1:** If that student loses the notebook or their house loses internet, nobody knows how much money anyone has.
+- **Problem 2:** If that student is dishonest, they can erase `Alice: 200` and write `Alice: 50` while adding `+150` to themselves!
 
----
-
-## 3. Meet OENEXA's Key Design Goals
-
-From the very first line of code (`internal/core/types.go`), OENEXA is engineered around five pillars:
-
-| Pillar | What It Means for Beginners | How OENEXA Implements It |
-| :--- | :--- | :--- |
-| **Post-Quantum Safe** | Even a powerful future quantum computer cannot forge your wallet signature. | Uses NIST-standardized `ML-DSA-65` signatures and `ML-KEM-768` encryption from Block `0`. |
-| **Fast Finality (2s)** | Payments confirm permanently in ~2 seconds with no waiting for "6 confirmations". | Byzantine Fault Tolerant (BFT) voting (`Prevote` + `Precommit`) eliminates forks. |
-| **Ultra-Low Fees** | Sending money costs fractions of a millionth of a coin. | Standard transfer uses `21` gas at `10` nano-ONXC initial base fee = `210` nano-ONXC. |
-| **Optional Privacy** | Use transparent accounts for public clarity, or shield funds privately when needed. | Native Dual-Pool architecture connected by a supply-verifying Turnstile. |
-| **Clean Native Economy** | A strict, predictable money supply that never suffers runaway inflation. | Native coin **ONXC** with a hard cap of `100,000,000 ONXC`. |
+### Option B: The Blockchain Notebook (How OENEXA Works)
+All **five students keep an identical copy** of the notebook. Whenever Alice pays Bob `10 ONXC`:
+1. Alice announces *"Pay Bob 10 ONXC"* and locks it with her unforgeable digital signature.
+2. Everyone checks: *"Does Alice really own 10 ONXC? Did she really sign this?"*
+3. Once a supermajority (`> 2/3`) agrees, **every student writes the payment onto the exact same numbered page (a Block)** and stamps a mathematical fingerprint (`PrevHash`) of the previous page at the top!
 
 ---
 
-## 4. What Does "Layer-1" Mean?
-
-Think of internet infrastructure in layers:
-- **Layer-1 (L1)**: The base highway and settlement court itself (**OENEXA** is a Layer-1). It has its own validators, its own consensus rules (`ChainID = 1`), its own database, and its own coin (**ONXC**).
-- **Layer-2 (L2)**: Express lanes built *on top* of Layer-1 (like OENEXA's built-in rollup sequencer in `internal/rollup`) that bundle hundreds of off-chain transactions together and settle a compressed proof back onto Layer-1.
-
----
-
-## 5. Anatomy of a Block in OENEXA
-
-Every 2 seconds (`BlockIntervalSec = 2`), the active validator proposer constructs a block containing two parts:
-
-```text
-+-------------------------------------------------------------------+
-| BLOCK HEADER (The Tamper-Proof Label)                             |
-|  - Height        : Block number (0 = Genesis, 1, 2, 3, ...)       |
-|  - PrevHash      : SHA-3-256 fingerprint of the previous block    |
-|  - Timestamp     : Exact creation time                            |
-|  - TxRoot        : Merkle fingerprint of all txs inside the block |
-|  - StateRoot     : Root hash of all account balances after block  |
-|  - BaseFee       : Dynamic fee price for this block               |
-|  - GasUsed       : Total gas consumed by transactions here        |
-|  - ValidatorAddr : Who proposed this block                        |
-|  - Signature     : Proposer's ML-DSA-65 post-quantum signature    |
-+-------------------------------------------------------------------+
-| BLOCK BODY (The Transactions)                                     |
-|  [Tx 1] Alice -> Bob: 250 ONXC                                    |
-|  [Tx 2] Carol stakes 1,000 ONXC                                   |
-|  [Tx 3] Dave deploys a WASM smart contract                        |
-+-------------------------------------------------------------------+
-```
-
-Because `PrevHash` points backwards to Block `h - 1`, all blocks form an unbreakable chain back to **Block `0` (Genesis)**:
+## 2. Logic 1: How Block Chaining Prevents History Tampering
 
 ```mermaid
 flowchart LR
-    B0["Block 0 (Genesis)\nPrevHash: 0000..."] -->|"hash(B0)"| B1["Block 1\nPrevHash: hash(B0)"]
-    B1 -->|"hash(B1)"| B2["Block 2\nPrevHash: hash(B1)"]
-    B2 -->|"hash(B2)"| B3["Block 3\nPrevHash: hash(B2)"]
+    B0["Block 0 (Genesis)\nPrevHash: 0000...0000\nData: Premine 10M ONXC\nHash: 43fdef2f..."] -->|"PrevHash Link"| B1["Block 1\nPrevHash: 43fdef2f...\nData: Alice->Bob 250 ONXC\nHash: 18724418..."]
+    B1 -->|"PrevHash Link"| B2["Block 2\nPrevHash: 18724418...\nData: Carol stakes 1000\nHash: a3f03841..."]
+```
+
+### Worked Example: Catching a Cheater in Block 1
+Suppose Block 0, Block 1, and Block 2 have these genuine `SHA-3-256` fingerprints:
+
+| Block | Stored `PrevHash` | Block Data | Computed `SHA-3-256` Hash | Chain Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **Block 0** | `0000...0000` | `Genesis` | `43fdef2f90a2813b...` | Valid |
+| **Block 1** | `43fdef2f90a2813b...` | `Alice->Bob:250` | `187244180b90c4a6...` | Valid |
+| **Block 2** | `187244180b90c4a6...` | `Carol stakes 1000` | `a3f0384123db24c6...` | Valid |
+
+Now suppose Alice tries to cheat **later** by editing Block 1 from `250` to `999` (`Alice->Bob:999`):
+1. Recomputing Block 1's hash now yields **`8227a61e167ec44a...`** (completely different!).
+2. Look at Block 2's header: Block 2 still says `PrevHash = 187244180b90c4a6...`!
+3. Because **`8227a61e... != 18724418...`**, **Block 2 (and every block after it) immediately rejects Block 1 as forged!**
+
+```mermaid
+flowchart LR
+    T1["Tampered Block 1\nData changed: 250 -> 999\nNew Hash: 8227a61e..."] -.->|"MISMATCH! 8227 != 1872" | T2["Block 2 BREAKS!\nExpected PrevHash: 18724418...\nStatus: REJECTED"]
+```
+
+Try doing this exact edit live in [**Visual Lab Tab 1**](../visual-lab/index.html#blockchain)!
+
+---
+
+## 3. Logic 2: What Does "Layer-1" vs. "Layer-2" Mean?
+
+Think of transportation:
+- **Layer-1 (`OENEXA`)** = The sovereign national highway system and final supreme court.
+  - Has its own validators (`consensus`), its own cryptography (`ML-DSA-65`, `SHA-3-256`), its own permanent database (`LevelDB`), and its own currency (`ONXC`).
+  - Finalizes blocks directly every **2 seconds** (`BlockIntervalSec = 2`).
+- **Layer-2 (`internal/rollup`)** = Express toll lanes built *on top* of Layer-1.
+  - An L2 sequencer bundles hundreds or thousands of fast off-chain transactions into a single compressed batch (`PreRoot -> PostRoot`) and settles proof back onto OENEXA Layer-1.
+
+| Feature | Legacy Classical Chains | OENEXA Layer-1 |
+| :--- | :--- | :--- |
+| **Quantum Resistance** | Vulnerable ECDSA / Ed25519 (can add later via hard fork) | Built-in Day 1 (`ML-DSA-65` + `ML-KEM-768` + `SHA-3-256`) |
+| **Finality Speed** | Often probabilistic (wait 6+ blocks) | Instant 1-block finality (`~2s`) via BFT Precommits |
+| **Native Transfer Fee** | Often `$0.01` to `$5.00+` | `21` gas × `10` nano-ONXC = `210 nano-ONXC` (`$0.00000021` at `$1`/ONXC) |
+| **Privacy Support** | Fully public balances only | Dual-Pool (Public + Shielded Notes + Supply Turnstile) |
+| **Monetary Cap** | Varies (some unlimited) | Strict `100,000,000 ONXC` mathematical hard cap |
+
+---
+
+## 4. Logic 3: Anatomy of Every OENEXA Block
+
+Every `2 seconds`, the active validator packages waiting transactions into a `Block`:
+
+```text
++------------------------------------------------------------------------+
+| BLOCK HEADER (Signed by Proposer with ML-DSA-65)                       |
+|  - Height        : 1, 2, 3... (0 = Genesis)                            |
+|  - PrevHash      : SHA-3-256 hash of Block (Height - 1)                |
+|  - Timestamp     : Creation time (nanoseconds)                         |
+|  - TxRoot        : Merkle root summarizing every tx in the Body        |
+|  - StateRoot     : 256-bit Sparse Merkle Trie root of ALL balances     |
+|  - BaseFee       : EIP-1559 fee price per gas for this block           |
+|  - GasUsed       : Sum of gas consumed (must be <= 500,000,000)        |
+|  - ValidatorAddr : 32-byte address of the proposing validator          |
+|  - Signature     : 3,309-byte post-quantum ML-DSA-65 signature         |
++------------------------------------------------------------------------+
+| BLOCK BODY (Up to MaxTxPerBlock = 10,000 verified transactions)        |
+|  [Tx 0] Alice -> Bob : 250 ONXC (Nonce 0, Fee 210 nano-ONXC)           |
+|  [Tx 1] Carol stakes : 1,000 ONXC (TxStake)                            |
+|  [Tx 2] Dave deploys : WASM Smart Contract (TxDeploy)                  |
++------------------------------------------------------------------------+
+```
+
+Notice how **`TxRoot`** protects the transactions inside the block, **`StateRoot`** proves the final balances after running those transactions, and **`PrevHash`** locks the block to all history before it!
+
+---
+
+## 5. How a Node Processes One User Action (Subsystem Visual)
+
+```mermaid
+flowchart TD
+    A["1. Wallet signs Tx with ML-DSA-65"] --> B["2. RPC (onxc_sendRawTransaction) or P2P receives Tx"]
+    B --> C["3. Mempool validates format, GasLimit, Signature"]
+    C --> D["4. Proposer picks top-GasPrice Txs into Block"]
+    D --> E["5. BFT Consensus: Prevote -> Precommit (>2/3 Quorum)"]
+    E --> F["6. State Machine + OenexaVM updates Sparse Merkle Trie"]
+    F --> G["7. LevelDB writes Block & New StateRoot permanently"]
 ```
 
 ---
 
-## 6. How All Node Subsystems Fit Together
+## Student Practice Exercises (With Answers)
 
-When you run `oenexa-node`, you are running a complete sovereign computer node composed of clear, modular subsystems:
+1. **Exercise 1 (Tamper Detection):** Block `49` has hash `aaaa...`, and Block `50` stores `PrevHash: aaaa...`. A hacker edits 1 digit of a payment inside Block `48`. Which blocks become invalid (`BROKEN`)?  
+   <details><summary>Show Answer</summary>
+   Blocks **48, 49, 50, and every block after 48**. Changing Block 48 alters Block 48's hash, breaking Block 49's `PrevHash`, which forces Block 49's hash to change, breaking Block 50's `PrevHash` in a domino effect.
+   </details>
 
-- `internal/crypto` & `internal/keystore`: Creates keys, signs transactions, hashes data.
-- `internal/mempool`: Holds valid unconfirmed transactions waiting for the next block.
-- `internal/consensus`: Elects block proposers and runs BFT voting so nodes agree on the next block.
-- `internal/state` & `internal/mpt`: Executes transactions and updates account balances in a Sparse Merkle Trie.
-- `internal/shielded`: Handles private note commitments, nullifiers, and supply checks.
-- `internal/vm`: Executes WebAssembly smart contracts safely.
-- `internal/storage`: Persists blocks and state permanently to LevelDB on disk.
-- `internal/p2p` & `internal/sync`: Connects peers worldwide and downloads missing blocks.
-- `internal/rpc` & `internal/rosetta`: Lets wallets, explorers, scripts, and exchanges talk to your node.
-
----
-
-## Check Your Understanding
-
-1. **Why can't someone quietly change a transaction inside an old block (say Block `10`) when the network is at Block `500`?**  
-   *Answer:* Changing anything in Block `10` changes its `SHA-3-256` hash. Since Block `11`'s `PrevHash` stores Block `10`'s original hash, Block `11` and every block up to `500` would immediately fail verification unless the attacker controlled more than 2/3 of all validator stake and re-signed every single block.
-
-2. **What is the difference between OENEXA and ONXC?**  
-   *Answer:* **OENEXA** is the Layer-1 blockchain protocol and network (`ChainID = 1`, `ProtocolVersion = 1`). **ONXC** (*Open Network for the Next Generation Coin*) is the native coin used to pay fees, stake, and transfer value on OENEXA.
+2. **Exercise 2 (Naming Clarity):** Suppose a friend asks: *"Is ONXC the blockchain and OENEXA the coin, or vice versa?"* How do you answer clearly?  
+   <details><summary>Show Answer</summary>
+   **OENEXA** is the Layer-1 blockchain platform/network (`ChainID = 1`). **ONXC** (*Open Network for the Next Generation Coin*) is the native currency used to pay gas fees, stake, and transfer value on OENEXA.
+   </details>

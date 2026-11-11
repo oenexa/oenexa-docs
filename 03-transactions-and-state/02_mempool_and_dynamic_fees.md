@@ -1,96 +1,132 @@
 # Chapter 6: The Mempool (Waiting Room) & Dynamic Fees (EIP-1559)
 
-## 1. What Is the Mempool?
-
-Think of the **Mempool** (*Memory Pool*, implemented in `internal/mempool/`) as the **airport boarding lounge** for valid transactions waiting to board the next block.
-
-Whenever a transaction arrives via JSON-RPC (`onxc_sendRawTransaction`) or P2P gossip (`/oenexa/tx/1.0.0`), the node checks:
-1. Is the transaction structurally valid (`BasicValidate`)?
-   - `Data` size $\le 1\text{ MiB}$ (`MaxTxDataSize = 1 << 20`)
-   - `GasLimit` $\ge$ minimum gas required for its `TxType` and $\le \text{BlockGasLimit}$ (`500,000,000`)
-   - `GasPrice` $\ge \text{MinGasPrice}$ (`1` nano-ONXC)
-2. Is its `ML-DSA-65` signature valid and does `SHA-3-256(PublicKey) == From`?
-3. Does the mempool already hold this transaction hash (`seen` deduplication)?
-
-If valid, the transaction enters the mempool waiting room.
+> **Learning Objectives**
+> By the end of this chapter, you will be able to:
+> - Trace the **4-gate admission pipeline** inside `internal/mempool`.
+> - Order transactions inside the **Priority Max-Heap** (including timestamp tie-breaking and `ReplaceByFee`).
+> - Explain **Gas** and compute **`NextBaseFee(current, gasUsed)`** for busy, target, and quiet blocks.
+> - Prove why sustained spam becomes **10x more expensive in 20 blocks** (`±12.5%` rule).
+> - Compute transfer costs across all 3 wallet tiers (`UltraLow`, `Standard`, `Fast`).
+>
+> **Try It Visually:** Open [**Visual Lab Tab 3 — Mempool & Dynamic Gas Lab**](../visual-lab/index.html#fees) to experiment with queue sorting and `BaseFee` surges live!
 
 ---
 
-## 2. How Transactions Are Prioritized & Protected From Spam
+## 1. Everyday Analogy: Airport Security + Priority Boarding Lounge
 
-What if thousands of users send transactions at the same instant? OENEXA's mempool uses two data structures working together (`internal/mempool/mempool.go` & `priorityqueue.go`):
-
-1. **Priority Max-Heap**: Transactions are sorted first by **highest `GasPrice`** (so urgent transactions willing to tip slightly more board first), and ties are broken by **earliest `Timestamp`** (FIFO fairness!).
-2. **Capacity & Flood Protection**:
-   - **`DefaultMaxSize = 100,000`**: Maximum pending transactions stored in memory at once. If full, the lowest-priority (`GasPrice`) transaction can be evicted when a higher-fee transaction arrives (`ReplaceByFee`).
-   - **`MaxSenderQueueLen = 10,000`**: No single sender address can flood the entire waiting room and crowd out other students/users.
-
-When the Block Proposer builds a new block every 2 seconds (`Consensus`), it pops up to `MaxTxPerBlock = 10,000` transactions from the top of the priority queue within `BlockGasLimit = 500,000,000`, executes them, and **purges** them from the mempool once the block commits.
+Think of the **Mempool** (`internal/mempool/`) as the **airport boarding lounge** before a flight (a Block) departs every `2 seconds`:
+1. At the entrance gate, security checks your passport (`ML-DSA-65` signature), luggage weight (`Data <= 1 MiB`), and ticket minimum (`GasPrice >= 1`, `GasLimit >= minGas`).
+2. Inside the lounge (cap: **`DefaultMaxSize = 100,000`** waiting transactions), flyers line up with **highest `GasPrice` boarding first**!
+3. If two travelers paid the exact same `GasPrice`, whoever arrived earlier (**smallest `Timestamp`**) boards first (fair FIFO tie-breaking).
+4. Nobody can flood the entire lounge by themselves — each sender address is capped at **`MaxSenderQueueLen = 10,000`** pending transactions.
 
 ---
 
-## 3. What Is "Gas" and Why Does It Exist?
+## 2. Logic 1: The Mempool Admission & Ordering Rules
 
-Suppose anyone could deploy an infinite `while (true) {}` loop inside a smart contract for free. Every node on Earth running that contract would hang forever!
-
-**Gas** is the unit of computational work (`internal/core/types.go`):
-- Simple ONXC transfer: **`21` gas**
-- Deposit into Shielded Pool: **`50` gas**
-- Withdraw from Shielded Pool: **`100` gas**
-- Shielded-to-shielded transfer: **`150` gas**
-- Call a smart contract: **`500` gas** (plus WebAssembly instruction metering)
-- Deploy a smart contract: **`5,000` gas**
-
-Because every unit of gas costs at least `1 nano-ONXC` (`MinBaseFee = 1`), infinite loops and spam attacks hit the caller's `GasLimit` or run out of money immediately.
-
----
-
-## 4. OENEXA's Dynamic Fee Model (EIP-1559 Style)
-
-Instead of making users blindly guess an auction price when the network gets busy, OENEXA adjusts a transparent, automatic **Base Fee** every block (`internal/core/fee.go`):
-
-### Key Parameters
-- **`BlockGasLimit`**: `500,000,000` gas max per block.
-- **`TargetBlockGas()`**: `BlockGasLimit / 2 = 250,000,000` gas (`50%` full is the "Goldilocks" ideal!).
-- **`InitialBaseFee`**: `10 nano-ONXC/gas` at genesis.
-- **`MinBaseFee`**: `1 nano-ONXC/gas` (can never go to `0` — zero-cost spam is impossible).
-- **`MaxBaseFeeChangeDenom`**: `8` $\implies$ base fee can move by **at most `±12.5%` per block**.
-
-### How `NextBaseFee` Adjusts Automatically
-
-```text
-  Block is > 50% full (> 250M gas)  --->  BaseFee increases (up to +12.5%)
-  Block is == 50% full (250M gas)   --->  BaseFee stays unchanged
-  Block is < 50% full (< 250M gas)  --->  BaseFee decreases (down to -12.5%, min 1)
+```mermaid
+flowchart TD
+    In["New Transaction Arrives"] --> D1{"Already Seen Hash?"}
+    D1 -->|"Yes"| Drop1["Ignore (Deduplicated)"]
+    D1 -->|"No"| D2{"BasicValidate + Gas & Data <= 1 MiB?"}
+    D2 -->|"No"| Reject1["Reject Transaction"]
+    D2 -->|"Yes"| D3{"SHA-3(PubKey)==From & ML-DSA-65 Valid?"}
+    D3 -->|"No"| Reject2["Reject Forged Sig"]
+    D3 -->|"Yes"| D4{"Sender Queue < 10,000?"}
+    D4 -->|"No"| Reject3["Reject Sender Flood"]
+    D4 -->|"Yes"| Heap["Insert into Priority Max-Heap (or Evict Lowest GasPrice if 100k Full)"]
 ```
 
-Exact formula:
-- When busy (`gasUsed > target`):
-  $$\Delta = \max\left(1,\; \frac{\text{current} \times (\text{gasUsed} - \text{target})}{\text{target} \times 8}\right)$$
-- When quiet (`gasUsed < target`):
-  $$\Delta = \max\left(1,\; \frac{\text{current} \times (\text{target} - \text{gasUsed})}{\text{target} \times 8}\right)$$
-  (clamped so it never drops below `MinBaseFee = 1`).
+### Worked Example: How 4 Waiting Transactions Are Ordered
+Suppose 4 valid transactions wait in the mempool:
+
+| Tx | Sender | `GasPrice` (`nano-ONXC/gas`) | Arrival `Timestamp` | Boarding Position | Reason |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **T1** | Bob | `12` | `t = 100 ns` | **#2** | Tied at `12` with Carol, arrived *earlier* (`100 < 300`) |
+| **T2** | Alice | `20` | `t = 200 ns` | **#1 (First!)** | Highest `GasPrice = 20` |
+| **T3** | Carol | `12` | `t = 300 ns` | **#3** | Tied at `12` with Bob, arrived *later* (`300 > 100`) |
+| **T4** | Dave | `10` | `t = 50 ns` | **#4 (Last)** | Lowest `GasPrice = 10` (even though arrived first!) |
+
+### Replace-By-Fee (Speeding Up a Stuck Transaction)
+Suppose Dave later decides `GasPrice = 10` is too slow during heavy traffic and broadcasts an updated transaction with the **exact same `Nonce`**, higher `GasPrice`, and higher priority; or if the 100,000-slot mempool is full, any newcomer offering a **strictly higher `GasPrice`** than the cheapest item evicts that cheapest item cleanly.
 
 ---
 
-## 5. How Ultra-Cheap Is an ONXC Transfer?
+## 3. Logic 2: Why Gas Exists & What Operations Cost
 
-Using `TransferCostNanoONXC(baseFee, tip) = 21 * (baseFee + tip)`:
+Without gas, an attacker could deploy an infinite `for {}` loop smart contract and freeze every validator on Earth forever! Gas puts a strict price tag on every unit of CPU/storage work (`internal/core/types.go`):
 
-- **At Genesis (`InitialBaseFee = 10`, `tip = 0`)**:
-  $$21 \times 10 = 210\text{ nano-ONXC} = 0.00000021\text{ ONXC}$$
-  Even if `1 ONXC = $1.00`, a transfer costs **`$0.00000021`** — less than one thousandth of a cent!
-- **At Quiet Network Floor (`MinBaseFee = 1`, `tip = 0`)**:
-  $$21 \times 1 = 21\text{ nano-ONXC} = 0.000000021\text{ ONXC}$$
-
-Wallets can also call `onxc_feeEstimate` to choose one of 3 convenience tiers (`FeeTierUltraLow`, `FeeTierStandard`, `FeeTierFast`).
+| Operation | Gas Cost | At Genesis (`BaseFee = 10`, Tip = `0`) | At Quiet Floor (`MinBaseFee = 1`, Tip = `0`) |
+| :--- | :--- | :--- | :--- |
+| **`TxTransfer`** (`0x01`) | **`21` gas** | `210 nano-ONXC` (`$0.00000021` @ `$1`/ONXC) | `21 nano-ONXC` (`$0.000000021`) |
+| **`TxShield`** (`0x06`) | **`50` gas** | `500 nano-ONXC` | `50 nano-ONXC` |
+| **`TxUnshield`** (`0x07`) | **`100` gas** | `1,000 nano-ONXC` | `100 nano-ONXC` |
+| **`TxShieldedTransfer`** (`0x08`) | **`150` gas** | `1,500 nano-ONXC` | `150 nano-ONXC` |
+| **`TxCall`** (`0x03`) | **`500` gas** (+ WASM step metering) | `5,000 nano-ONXC` | `500 nano-ONXC` |
+| **`TxDeploy`** (`0x02`) | **`5,000` gas** | `50,000 nano-ONXC` | `5,000 nano-ONXC` |
 
 ---
 
-## Check Your Understanding
+## 4. Logic 3: Automatic Dynamic Base Fee (`NextBaseFee` — EIP-1559)
 
-1. **If a block uses `500,000,000` gas (`100%` of `BlockGasLimit`) while `currentBaseFee = 16`, what is the next block's `BaseFee`?**  
-   *Answer:* Excess gas over `250M` target equals `250M`, so the increase is `16 * 250M / (250M * 8) = +2` (`+12.5%`). `NextBaseFee = 18 nano-ONXC/gas`.
+Instead of forcing users to guess chaotic fee auctions, OENEXA aims for every block to be **`50%` full** (`internal/core/fee.go`):
+- **`BlockGasLimit`** = `500,000,000` gas
+- **`TargetBlockGas()`** = `500,000,000 / 2 = 250,000,000` gas (`50%`)
+- **`InitialBaseFee`** = `10` nano-ONXC/gas
+- **`MinBaseFee`** = `1` nano-ONXC/gas (zero-cost spam is permanently impossible!)
+- **`MaxBaseFeeChangeDenom`** = `8` $\implies$ changes by at most **`±12.5%` per block**
 
-2. **Why does OENEXA cap each sender to `MaxSenderQueueLen = 10,000` in the mempool?**  
-   *Answer:* To stop one noisy address from filling all `100,000` mempool slots and blocking legitimate users.
+```mermaid
+flowchart LR
+    G{"Parent Block GasUsed vs. 250,000,000 Target"}
+    G -->|"> 250M (Busy / Congested)"| Up["Increase BaseFee\nup to +12.5% per block"]
+    G -->|"== 250M (Perfect 50%)"| Same["Keep BaseFee Exact Same"]
+    G -->|"< 250M (Quiet)"| Down["Decrease BaseFee\ndown to -12.5% (floor = 1)"]
+```
+
+### 3 Worked Numeric Examples (`currentBaseFee = 16`)
+Recall `delta = floor(current * |gasUsed - 250M| / (250M * 8))` (with min `+1` bump when over target):
+
+1. **Case A — Totally Full Spam Block (`gasUsed = 500,000,000`, `100%` full):**
+   - `over = 500M - 250M = 250M`
+   - `delta = 16 * 250M / (250M * 8) = 16 / 8 = +2` (`+12.5%`)
+   - **`NextBaseFee = 16 + 2 = 18 nano-ONXC/gas`**!
+2. **Case B — Balanced Target Block (`gasUsed = 250,000,000`, `50%` full):**
+   - `gasUsed == target` $\implies$ `delta = 0`
+   - **`NextBaseFee = 16 nano-ONXC/gas`**!
+3. **Case C — Empty Quiet Block (`gasUsed = 0`, `0%` full):**
+   - `under = 250M - 0 = 250M`
+   - `delta = 16 * 250M / (250M * 8) = -2` (`-12.5%`)
+   - **`NextBaseFee = 16 - 2 = 14 nano-ONXC/gas`**!
+
+### Mathematical Anti-Spam Proof (Why Attacks Bankrupt Themselves)
+What if an attacker tries stuffing 100% full blocks (`500M` gas) over and over to freeze out real users?
+Every full block multiplies `BaseFee` by $\frac{9}{8} = 1.125$:
+$$f_{n+k} = f_n \times (1.125)^k$$
+To make fees **10x higher**: $(1.125)^k \ge 10 \implies k = \lceil \ln(10)/\ln(1.125) \rceil = \mathbf{20\text{ blocks}}$ (~40 seconds at 2s/block)! In 80 seconds (40 full blocks), attack cost multiplies by over **100x** — destroying the attacker's budget while every `BaseFee` is permanently **burned**.
+
+---
+
+## 5. Logic 4: Wallet Fee Tiers (`onxc_feeEstimate`)
+
+From `FeeEstimate(baseFee, tier)` in `internal/core/fee.go` (using `baseFee = 10` on a standard `21`-gas `TxTransfer`):
+
+| Tier | Tip Rule | Per-Gas Price | Total `21`-Gas Transfer Cost | Burned vs. Validator Tip |
+| :--- | :--- | :--- | :--- | :--- |
+| **`FeeTierUltraLow`** | `tip = 0` | `10` | **`210 nano-ONXC`** | `210` burned / `0` tip |
+| **`FeeTierStandard`** | `tip = max(1, baseFee / 10)` (`+10%`) | `10 + 1 = 11` | **`231 nano-ONXC`** | `210` burned / `21` tip |
+| **`FeeTierFast`** | `tip = max(1, baseFee / 2)` (`+50%`) | `10 + 5 = 15` | **`315 nano-ONXC`** | `210` burned / `105` tip |
+
+---
+
+## Student Practice Exercises (With Answers)
+
+1. **Exercise 1 (Mempool Capacity):** If one malfunctioning dApp loops and blasts `12,000` transactions from a single wallet address, what happens after the `10,000`th?  
+   <details><summary>Show Answer</summary>
+   Transactions `#1` through `#10,000` fit (`MaxSenderQueueLen = 10,000`), and transactions `#10,001+` are rejected so one noisy sender cannot monopolize the `100,000`-slot mempool.
+   </details>
+
+2. **Exercise 2 (Fee Tier Calculation):** If `baseFee = 20`, what is the total cost of a `TxTransfer` (`21` gas) using **`FeeTierFast`** (`tip = baseFee / 2`)?  
+   <details><summary>Show Answer</summary>
+   `tip = 20 / 2 = 10`, so `effectivePrice = 20 + 10 = 30 nano-ONXC/gas`. Total = `21 * 30 = 630 nano-ONXC` (`420` burned + `210` validator tip).
+   </details>

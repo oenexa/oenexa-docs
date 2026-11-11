@@ -1,70 +1,90 @@
 # Chapter 7: Global Account State & The Sparse Merkle Trie
 
-## 1. Two Databases Inside Every Node
-
-If every node had to replay every transaction from Block `0` every time you asked *"How much ONXC does Alice have?"*, checking a balance after 10 million blocks would take minutes!
-
-Instead, `internal/storage` maintains **two complementary LevelDB stores**:
-1. **Block Store** (`storage/blockchain.go`): Stores committed blocks sequentially by height and hash.
-2. **State DB / State Store** (`internal/state/statedb.go` & `storage/statestore.go`): Stores the **current snapshot** of every account right now (`acc:<address>`), smart contract storage slots, shielded pool totals, spent nullifiers, and the **Sparse Merkle Trie** nodes (`t:<hash>`).
-
-For every address, an `Account` stores:
-- `Balance` (`uint64` in `nano-ONXC`)
-- `Nonce` (`uint64` replay counter)
-- `CodeHash` (hash of deployed WASM bytecode, if this address is a smart contract)
-- `StorageRoot` (root hash of contract storage slots)
+> **Learning Objectives**
+> By the end of this chapter, you will be able to:
+> - Distinguish LevelDB's **Block Store** from its **State Store (`acc:` and `t:` prefixes)**.
+> - Walk through a concrete **Merkle Proof** step by step to verify 1 account using only sibling hashes.
+> - Explain how a **256-bit Sparse Merkle Trie (SMT)** uses address bits + `zeroHash` sentinels.
+> - Prove why **order-independent `StateRoot`** convergence prevents validator disagreements.
+>
+> **Try It Visually:** Open [**Visual Lab Tab 4 — Sparse Merkle Trie Proof Lab**](../visual-lab/index.html#trie) to highlight sibling paths and run the order-independence test live!
 
 ---
 
-## 2. What Is a Merkle Tree? (Simple Student Analogy)
+## 1. Logic 1: Two Complementary Databases Inside Every Node
 
-Suppose a teacher wants to prove to a principal that **Alice scored 95** in a 1,000-student gradebook without sending the entire 1,000-page spreadsheet.
+Imagine checking your library card balance if the librarian had to re-read **every receipt since Year 1** every single time you asked! That would take forever.
 
-Imagine hashing pairs of student grades up a binary tree like a sports tournament bracket until **one single 32-byte hash** sits at the top — the **Root Hash**:
+Instead, `internal/storage` stores two fast views in LevelDB:
+1. **Block Store (`storage/blockchain.go`)**: Permanent archive of every historical block (`Height -> Block`), needed for catching up new peers and auditing history.
+2. **State DB (`internal/state/statedb.go` + `internal/mpt/mpt.go`)**: Today's live snapshot of every account:
+   - `"acc:<address>"` $\implies$ `Account{ Balance (uint64 nano-ONXC), Nonce (uint64), CodeHash, StorageRoot }`
+   - `"t:<nodeHash>"` $\implies$ Sparse Merkle Trie leaf & branch nodes authenticating every account!
 
-```text
-                  [ Root Hash ]
-                 /             \
-           Hash(AB)           Hash(CD)
-           /      \           /      \
-        Leaf A   Leaf B    Leaf C   Leaf D
-      (Alice=95) (Bob=12) (Carol=7) (Dave=88)
+All dirty writes from one finalized block are flushed in **one atomic LevelDB batch** (`NewBatch() -> Write()`), so a power outage mid-block never leaves half-updated balances!
+
+---
+
+## 2. Logic 2: How a Merkle Proof Verifies 1 Balance Without Downloading Billions
+
+Suppose a teacher wants to prove to a principal that **Alice's score is `95`** out of a 4-student class (`Alice=95`, `Bob=12`, `Carol=7`, `Dave=88`), **without sending Bob, Carol, or Dave's raw data**.
+
+```mermaid
+flowchart TD
+    Root["Root Hash: 8922c59784a4\nHash(hAB || hCD)"] --> AB["Branch hAB: a1d7f077e8a1\nHash(LeafA || LeafB)"]
+    Root --> CD["Branch hCD: d0de063636b5 (SIBLING #2)"]
+    AB --> A["Leaf A (Alice=95): 0ad79fb1f57d (TARGET)"]
+    AB --> B["Leaf B (Bob=12): 80ca6dc60cd0 (SIBLING #1)"]
+    CD --> C["Leaf C (Carol=7): 3bc5a9dc7d0d"]
+    CD --> D["Leaf D (Dave=88): 5c9860d5100c"]
 ```
 
-To prove `Leaf A (Alice = 95)` belongs in `[Root Hash]`, you **only need two sibling hashes**:
-1. `Leaf B` (to compute `Hash(AB)`)
-2. `Hash(CD)` (to compute `Root = Hash(Hash(AB), Hash(CD))`)
-
-That tiny list of sibling hashes is a **Merkle Proof**. Even with **billions** of accounts, verifying one account only takes ~32 hashes (**~1 KB**)!
-
----
-
-## 3. Why OENEXA Uses a *Sparse* Merkle Trie (SMT)
-
-Notice a problem with an ordinary sorted list tree: if someone inserts Bob *before* Alice versus Alice *before* Bob, or leaves empty slots, the tree shape could depend on insertion order!
-
-OENEXA (`internal/mpt/mpt.go`) uses a **256-bit Sparse Merkle Trie (`trieDepth = 256`)**:
-- An OENEXA address is `32 bytes = 256 bits` (256 zeros and ones, like `10110010...`).
-- Imagine a giant imaginary binary tree of depth `256` where **every possible address in the universe already has a fixed parking spot** decided by its bits (`0` = go left, `1` = go right)!
-- Obviously, nobody has enough disk space on Earth to store $2^{256}$ empty leaves!
-- **The clever "Sparse" trick**: any empty branch whose leaves are all empty collapses down to a precomputed constant sentinel `zeroHash`! You **only store the paths leading to real, non-zero accounts**.
-
-### Exact Leaf & Branch Format in `internal/mpt/mpt.go`
-- **Leaf (`nodeTypeLeaf = 0x01`)**: `0x01 || address[32] || valueHash[32]`
-- **Branch (`nodeTypeBranch = 0x02`)**: `0x02 || leftChildHash[32] || rightChildHash[32]`
-- **Prefix in LevelDB**: `"t:"` keeps trie nodes cleanly separated from account keys (`"acc:"`).
-
-### Three Superpowers of OENEXA's 256-bit SMT
-1. **Order-Independent Convergence**: Because Alice's position is fixed forever by the 256 bits of her address, inserting Alice then Bob produces the **exact same 32-byte `StateRoot`** as inserting Bob then Alice! Every honest validator converges bit-for-bit.
-2. **Compact Membership Proofs**: Light wallets can verify any account's `Balance` and `Nonce` against a block header's `StateRoot` in $O(\log_2 N)$ hashes without downloading the whole chain.
-3. **Non-Membership Proofs**: Because empty subtrees hash deterministically to `zeroHash`, a node can cryptographically prove an address has **no account / 0 balance** cleanly.
+### Worked Example: Verifying Alice's Balance in 3 Tiny Steps
+The principal only already knows the trusted **`Root Hash = 8922c59784a4`** from the Block Header. Alice sends only **1 leaf value (`"Alice=95"`) + 2 sibling hashes**:
+1. Principal hashes Alice's value: `LeafA = SHA-3("Alice=95") = 0ad79fb1f57d`.
+2. Principal combines `LeafA` with **Sibling #1 (`LeafB = 80ca6dc60cd0`)** $\implies h_{AB} = \texttt{a1d7f077e8a1}$.
+3. Principal combines $h_{AB}$ with **Sibling #2 (`hCD = d0de063636b5`)** $\implies \text{ComputedRoot} = \texttt{8922c59784a4}$.
+4. Does `ComputedRoot == Trusted Header StateRoot`? **YES!** Even if there were **4 billion** accounts instead of 4, Alice only needs **`32` hashes (~1 KB)** to prove her balance!
 
 ---
 
-## Check Your Understanding
+## 3. Logic 3: Why OENEXA Uses a *256-Bit Sparse* Merkle Trie (`internal/mpt`)
 
-1. **Why can't two OENEXA nodes arrive at different `StateRoot` hashes simply because one processed account updates in a different map iteration order?**  
-   *Answer:* In the 256-bit Sparse Merkle Trie, each account's tree path is determined strictly by the 256 bits of its `32`-byte address, making the resulting `StateRoot` completely order-independent.
+A regular Merkle tree has a tricky bug: if Node 1 inserts `[Alice, Bob]` while Node 2 iterates a map in order `[Bob, Alice]`, their tree shapes and `Root` hashes could differ!
 
-2. **What happens in the SMT if an empty subtree has zero active accounts?**  
-   *Answer:* Empty subtrees are represented by `zeroHash` sentinels rather than allocating $2^{256}$ nodes on disk.
+OENEXA eliminates this completely using a **256-bit Sparse Merkle Trie (`trieDepth = 256`)**:
+- Every OENEXA address is **`32 bytes = 256 bits`** (a sequence of 256 `0`s and `1`s).
+- **The Bit-Routing Rule:** Read the address bits from bit `0` down to bit `255`:
+  - **`0`** = turn **LEFT** child branch
+  - **`1`** = turn **RIGHT** child branch
+- Every possible address in the universe already owns a **permanent, fixed parking spot** at the bottom of the 256-level binary tree!
+
+### Wait — Does That Take $2^{256}$ Leaves on Disk? No! (`zeroHash`)
+Look at what "Sparse" means:
+- Whenever an entire empty region contains zero accounts, we do **NOT** create millions of empty nodes on disk — we replace the whole empty branch with a single constant **`zeroHash`** (`[32]byte{0}`)!
+- Only paths leading to real, non-zero accounts are materialized inside LevelDB:
+  - **Leaf (`nodeTypeLeaf = 0x01`)**: `0x01 || address[32] || valueHash[32]`
+  - **Branch (`nodeTypeBranch = 0x02`)**: `0x02 || leftChildHash[32] || rightChildHash[32]`
+
+### Worked Bit-Routing Example (2 Accounts)
+Suppose Alice's address starts with bits **`01...`** and Bob's starts with **`10...`**:
+- Bit `0` of Alice is **`0`** $\implies$ Alice goes **Left** into `Branch_0`.
+- Bit `0` of Bob is **`1`** $\implies$ Bob goes **Right** into `Branch_1`.
+- Notice: Whether you insert **Alice first then Bob** OR **Bob first then Alice**, Alice ALWAYS lands in Left (`0...`) and Bob ALWAYS lands in Right (`1...`)! Every node computes the **exact same `StateRoot`** (order-independent convergence!).
+
+### Non-Membership Proofs (Proving an Account Has `0` / Doesn't Exist)
+Because unused branches deterministically hash down to **`zeroHash`**, a light wallet can prove an address has **no balance / does not exist** simply by showing the Merkle sibling path reaches `zeroHash` at that address's bit coordinate!
+
+---
+
+## Student Practice Exercises (With Answers)
+
+1. **Exercise 1 (Bit-Path Routing):** Account X's first two address bits are `10...` and Account Y's are `11...`. At Depth `0` (top root), do X and Y take the same branch or opposite branches? When do they split?  
+   <details><summary>Show Answer</summary>
+   Both X and Y start with bit `1`, so at Depth `0` both take the **Right** branch (`Branch_1`). At Depth `1`, X's second bit is `0` (Left) and Y's second bit is `1` (Right), so they split there.
+   </details>
+
+2. **Exercise 2 (LevelDB Prefix):** How does `oenexa-node` stop Sparse Merkle Trie node keys from accidentally overwriting raw account records in LevelDB?  
+   <details><summary>Show Answer</summary>
+   Account snapshots use key prefix `"acc:"` while trie nodes use prefix `"t:"` (`dbKeyPrefix = []byte("t:")`).
+   </details>

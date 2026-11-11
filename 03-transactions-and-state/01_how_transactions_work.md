@@ -1,111 +1,140 @@
 # Chapter 5: How Transactions Work Step-by-Step
 
-## 1. What Is a Blockchain Transaction?
-
-When you send money using a banking app, you submit a signed instruction saying: *"Move $250 from Account A to Account B."*
-
-On OENEXA, a **Transaction** (`Transaction` in `internal/core/transaction.go`) is a cryptographically signed instruction requesting a permanent state transition on the blockchain.
-
-Every transaction carries these exact fields:
-- **`Version`**: Protocol format version (`1`).
-- **`Type`**: One of the 8 native operations supported by OENEXA (`0x01`–`0x08`).
-- **`Nonce`**: A sequential counter (`0, 1, 2, ...`) proving this transaction hasn't already been executed.
-- **`From`**: Sender's `32`-byte address.
-- **`To`**: Recipient's `32`-byte address (or smart contract address).
-- **`Amount`**: Number of **`nano-ONXC`** to transfer (remember: $1\text{ ONXC} = 10^9\text{ nano-ONXC}$).
-- **`GasLimit`**: Maximum compute units the sender agrees to pay for (`21` for a transfer).
-- **`GasPrice`**: Price per unit of gas in `nano-ONXC` (must be $\ge \text{BaseFee}$ and $\ge 1$).
-- **`Timestamp`**: Unix nanosecond timestamp when created.
-- **`Data`**: Optional bytes (WASM bytecode for deploy, function arguments for call, or note commitment/encrypted note for privacy).
-- **`PublicKey`**: Sender's `1,952`-byte `ML-DSA-65` public key.
-- **`Signature`**: Sender's `3,309`-byte `ML-DSA-65` signature.
-- **`Hash`**: Unique `SHA-3-256` transaction ID (`32` bytes).
+> **Learning Objectives**
+> By the end of this chapter, you will be able to:
+> - Inspect every field inside an OENEXA `Transaction` (`internal/core/transaction.go`).
+> - Recognize all **8 native transaction types (`0x01`–`0x08`)** with concrete real-life examples for each one.
+> - Explain **Nonces** with both a replay-attack example and an out-of-order queue example.
+> - Trace how `SigningPayload()` stops attackers from modifying amount or recipient fields.
+> - Follow a **`250 ONXC`** payment from CLI click to finalized StateDB update.
+>
+> **Try It Visually:** Open [**Visual Lab Tab 3 — Mempool & Gas Lab**](../visual-lab/index.html#fees) to watch transactions enter the queue and get packed into blocks!
 
 ---
 
-## 2. The 8 Transaction Types on OENEXA
+## 1. Everyday Analogy: A Certified Signed Instruction Envelope
 
-From `internal/core/types.go`, every action on the chain uses one of these native transaction codes:
+Think of a transaction as a **tamper-proof signed bank check with a numbered serial line**:
+- Only **Alice** has the magical wax stamp (`ML-DSA-65 PrivateKey`) that creates a valid signature for Alice's address.
+- Everyone can verify who wrote the check, who receives it, how much `nano-ONXC` moves, and its sequential serial number (`Nonce`).
+- If even **one digit** of the amount or recipient changes after Alice stamps it, the wax seal breaks instantly!
 
-| Code | Name | What It Does (In Plain English) | Default Gas |
+### Anatomy of a `Transaction` (`internal/core/transaction.go`)
+
+```text
++-------------------------------------------------------------------+
+| SIGNED DATA FIELDS (Fed into SigningPayload() before signing!)    |
+|  - Version   : uint8   -> Protocol version (1)                    |
+|  - Type      : uint8   -> Operation code (0x01 to 0x08)           |
+|  - Nonce     : uint64  -> Sequential sender counter (0, 1, 2...)  |
+|  - From      : [32]B   -> Sender address = SHA-3-256(PublicKey)   |
+|  - To        : [32]B   -> Recipient or contract address           |
+|  - Amount    : uint64  -> Value in nano-ONXC (1 ONXC = 10^9)      |
+|  - GasLimit  : uint64  -> Max compute gas sender agrees to pay    |
+|  - GasPrice  : uint64  -> Nano-ONXC offered per unit of gas       |
+|  - Timestamp : int64   -> Unix nanoseconds when created           |
+|  - Data      : []byte  -> Extra payload (max 1 MiB = 1,048,576 B) |
++-------------------------------------------------------------------+
+| AUTHORIZATION & RECEIPT FIELDS                                    |
+|  - PublicKey : [1952]B -> Sender's ML-DSA-65 public key           |
+|  - Signature : [3309]B -> Signature over SigningPayload()         |
+|  - Hash      : [32]B   -> Unique SHA-3-256 transaction ID         |
++-------------------------------------------------------------------+
+```
+
+---
+
+## 2. Logic 1: All 8 Native Transaction Types (With Examples)
+
+Instead of needing external wrapper contracts for basic chain features, OENEXA supports **8 native `TxType` operations** (`internal/core/types.go`):
+
+| Code | Constant | Gas Constant | Concrete Student Example |
 | :--- | :--- | :--- | :--- |
-| `0x01` | `TxTransfer` | Send ONXC from one transparent address to another. | `21` (`GasTransfer`) |
-| `0x02` | `TxDeploy` | Upload and register a new WebAssembly smart contract (`Data` = WASM bytes). | `5,000` (`GasDeploy`) |
-| `0x03` | `TxCall` | Run a function on an existing smart contract (`To` = contract, `Data` = call args). | `500` (`GasCall`) |
-| `0x04` | `TxStake` | Lock ONXC to become a validator or delegate to a validator. | — |
-| `0x05` | `TxUnstake` | Request withdrawal of staked ONXC after the unbonding period. | — |
-| `0x06` | `TxShield` | Deposit public ONXC into the private **Shielded Pool** via a note commitment. | `50` (`GasShield`) |
-| `0x07` | `TxUnshield` | Withdraw ONXC from the Shielded Pool back into a public address. | `100` (`GasUnshield`) |
-| `0x08` | `TxShieldedTransfer` | Send ONXC privately inside the Shielded Pool (note to note). | `150` (`GasShieldedTransfer`) |
+| `0x01` | `TxTransfer` | `GasTransfer = 21` | Alice sends `250 ONXC` to Bob's public address. |
+| `0x02` | `TxDeploy` | `GasDeploy = 5,000` | Student club uploads compiled `.wasm` bytecode (`Data`) to create a new Treasury smart contract. |
+| `0x03` | `TxCall` | `GasCall = 500` | Alice sends `Data = "vote:yes"` to contract address `To` to execute a WASM function. |
+| `0x04` | `TxStake` | — | Bob locks `5,000 ONXC` (`Amount = 5,000 * 10^9`) onto a Validator to start earning block rewards. |
+| `0x05` | `TxUnstake` | — | Bob requests withdrawal of `2,000 ONXC` from a validator (starts the unbonding countdown). |
+| `0x06` | `TxShield` | `GasShield = 50` | Alice moves `100 ONXC` from her public account into a sealed private Note inside the **Shielded Pool**. |
+| `0x07` | `TxUnshield` | `GasUnshield = 100` | Carol withdraws `40 ONXC` from a private Note back to a public address (Turnstile enforces supply conservation!). |
+| `0x08` | `TxShieldedTransfer` | `GasShieldedTransfer = 150` | Alice spends a private note and creates a new private note for Bob inside the Shielded Pool — amount & recipient stay private! |
 
 ---
 
-## 3. Why Do We Need a `Nonce`? (Preventing Replay Attacks)
+## 3. Logic 2: Why `Nonce` Stops Replay Attacks
 
-Imagine Alice signs a transaction: *"Pay Bob `10 ONXC`."*
+### Attack Scenario Without Nonces
+Suppose Alice pays Bob `10 ONXC` by broadcasting a valid signed message. Without a sequential counter, Bob could save a copy of Alice's exact bytes and re-submit that exact valid signature **50 times** until Alice's balance drops by `500 ONXC`!
 
-Without a **Nonce** (*"number used once"*), Bob could take a copy of Alice's valid signed message and keep re-broadcasting it 100 times until Alice's wallet hits `0`!
+### How OENEXA Stops It (`account.Nonce`)
+1. Every new account starts in StateDB with **`Nonce = 0`**.
+2. Alice's first transaction **must** say `Nonce = 0`. When Block `1` executes it, StateDB advances Alice's stored nonce to **`1`**.
+3. Bob tries re-broadcasting Alice's saved `Nonce = 0` bytes. Every node rejects it: **`tx.Nonce (0) != state.Nonce (1)`**!
 
-How OENEXA prevents replay attacks:
-1. Every account starts at `Nonce = 0` in StateDB.
-2. When Alice signs her very first transaction, it **must** say `Nonce = 0`.
-3. Once Block 1 executes Alice's transaction, StateDB increments Alice's account nonce to **`1`**.
-4. If anyone broadcasts the `Nonce = 0` transaction again, every node rejects it immediately because `tx.Nonce (0) != account.Nonce (1)`.
-5. Alice's next transaction must use `Nonce = 1`, then `2`, then `3`, in exact order.
+### Out-of-Order Nonce Example (Gap Case)
+Suppose Alice's StateDB nonce is currently `4`, and she accidentally broadcasts two transactions with `Nonce = 4` and `Nonce = 6` (missing `5`):
+- `Nonce = 4` executes immediately (`account.Nonce` becomes `5`).
+- `Nonce = 6` **cannot execute yet** (`6 != 5`) until Alice submits the missing `Nonce = 5` transaction! Transactions from a single sender always execute strictly in sequence `0, 1, 2, 3, ...`.
 
 ---
 
-## 4. Walkthrough: Alice Sends `250 ONXC` to Bob
+## 4. Logic 3: End-to-End Walkthrough (`Alice -> Bob: 250 ONXC`)
 
-Let's follow every step inside `oenexa-node` when Alice sends `250 ONXC` (`250,000,000,000 nano-ONXC`) to Bob:
+Let's follow every message and exact `nano-ONXC` calculation when Alice (starting balance `1,000 ONXC`, `Nonce = 0`) sends **`250 ONXC`** to Bob (starting balance `10 ONXC`) while `BaseFee = 10`, `PriorityTip = 5` (`GasPrice = 15`):
 
 ```mermaid
 sequenceDiagram
-    participant Alice as Alice's Wallet / CLI
-    participant RPC as Node JSON-RPC
-    participant Mempool as Node Mempool
-    participant Consensus as BFT Consensus + StateDB
-    participant Bob as Bob's Address
+    participant Alice as Alice Wallet
+    participant RPC as JSON-RPC Node
+    participant Pool as Mempool
+    participant Cons as BFT Consensus + StateDB
+    participant Bob as Bob Account
 
-    Alice->>RPC: 1. Query onxc_getTransactionCount(Alice) -> nonce = 0
-    Alice->>RPC: 2. Query onxc_gasPrice() -> base_fee = 10
-    Note over Alice: Build TxTransfer(Amt=250 ONXC, GasLimit=21, GasPrice=15)
-    Note over Alice: Compute SigningPayload -> Sign with ML-DSA-65 PrivateKey
-    Alice->>RPC: 3. Submit via onxc_sendRawTransaction(gobHex)
-    RPC->>Mempool: 4. Decode & BasicValidate + Verify ML-DSA-65 Signature
-    Note over Mempool: Store in Priority Queue + Gossip via P2P (/oenexa/tx/1.0.0)
-    Mempool->>Consensus: 5. Next Block Proposer picks highest GasPrice txs
-    Note over Consensus: Check Alice balance >= (250 ONXC + 21*15) & Nonce == 0
-    Consensus->>Consensus: Burn BaseFee (21*10 = 210 nano-ONXC)
-    Consensus->>Consensus: Credit Tip (21*5 = 105 nano-ONXC) to Validator
-    Consensus->>Bob: 6. Credit +250 ONXC to Bob in Sparse Merkle Trie
-    Consensus->>Consensus: Commit Block after 2/3+ Precommits -> Balance Updated!
+    Alice->>RPC: 1. Query onxc_getTransactionCount(Alice) -> 0
+    Alice->>RPC: 2. Query onxc_gasPrice() -> BaseFee = 10
+    Note over Alice: Build TxTransfer(Amount=250e9, GasLimit=21, GasPrice=15)
+    Note over Alice: Sign Big-Endian SigningPayload() with ML-DSA-65
+    Alice->>RPC: 3. Submit via onxc_sendRawTransaction(txHex)
+    RPC->>Pool: 4. Check BasicValidate + Verify Signature + SHA3(PubKey)==From
+    Pool->>Cons: 5. Next Block (~2s) pops highest GasPrice tx
+    Note over Cons: Verify Alice balance >= 250,000,000,315 & Nonce == 0
+    Cons->>Cons: Burn BaseFee: 21 * 10 = 210 nano-ONXC
+    Cons->>Cons: Tip Validator: 21 * 5 = 105 nano-ONXC
+    Cons->>Bob: 6. Credit Bob +250 ONXC, update StateRoot!
 ```
 
-### Step-by-Step Math Check (At `InitialBaseFee = 10`, `Tip = 5`)
-- **Transfer Amount**: `250 * 1,000,000,000 = 250,000,000,000 nano-ONXC`
-- **Gas Used**: `21` (`GasTransfer`)
-- **Total Fee Paid by Alice**: `21 * (10 + 5) = 315 nano-ONXC` (`0.000000315 ONXC`)
-  - **Burned forever**: `21 * 10 = 210 nano-ONXC`
-  - **Paid to Validator**: `21 * 5 = 105 nano-ONXC`
-- **Alice's New Balance**: `oldBalance - 250,000,000,315 nano-ONXC`
-- **Alice's New Nonce**: `0 -> 1`
-- **Bob's New Balance**: `oldBobBalance + 250,000,000,000 nano-ONXC`
+### Exact Before & After Balance Ledger
+| Field | Before Block | Change | After Block |
+| :--- | :--- | :--- | :--- |
+| **Alice Balance** | `1,000.000000000 ONXC` | `-250.000000315 ONXC` (`250 ONXC + 210 burn + 105 tip`) | **`749.999999685 ONXC`** |
+| **Alice Nonce** | `0` | `+1` | **`1`** |
+| **Bob Balance** | `10.000000000 ONXC` | `+250.000000000 ONXC` | **`260.000000000 ONXC`** |
+| **Validator Tip** | `0` | `+105 nano-ONXC` (`21 * 5`) | **`+105 nano-ONXC`** |
+| **Supply Burned** | — | `-210 nano-ONXC` (`21 * 10`) | **Burned Forever!** |
 
 ---
 
-## 5. How `SigningPayload()` Prevents Tampering
+## 5. Logic 4: How `SigningPayload()` Stops Field Tampering
 
-Inside `internal/core/transaction.go`, `SigningPayload()` serializes `Version`, `Type`, `Nonce`, `From`, `To`, `Amount`, `GasLimit`, `GasPrice`, `Timestamp`, and `Data` into canonical Big-Endian binary bytes **before** signing.
+Inside `internal/core/transaction.go`, `SigningPayload()` serializes fields into deterministic **Big-Endian** binary bytes:
+`Version (1B) || Type (1B) || Nonce (8B) || From (32B) || To (32B) || Amount (8B) || GasLimit (8B) || GasPrice (8B) || Timestamp (8B) || Data`
 
-Even changing 1 byte of `Amount`, swapping `To` to a hacker's address, or altering `GasLimit` after signing changes `SigningPayload()`, causing `crypto.Verify(tx.PublicKey, payload, tx.Signature)` to return `false` and the node to drop the tampered transaction. Additionally, the node verifies `SHA-3-256(tx.PublicKey) == tx.From` so nobody can pretend a different address signed it.
+### Tampered Check Example
+Suppose a hacker intercepts Alice's network packet and tries changing just **`To`** from Bob's address to Hacker's address (keeping Alice's valid `Signature`):
+1. Receiving node recomputes `SigningPayload()` with the hacker's **`To`**.
+2. Even though every other field is identical, the payload bytes differ!
+3. `crypto.Verify(tx.PublicKey, payload, tx.Signature)` returns **`false`**, so the tampered transaction is dropped immediately.
 
 ---
 
-## Check Your Understanding
+## Student Practice Exercises (With Answers)
 
-1. **Why can't Bob intercept Alice's signed transaction to Carol, swap `To` to Bob's address, and keep Alice's signature?**  
-   *Answer:* The recipient address `To` is included inside `SigningPayload()`. Changing `To` changes the payload bytes, so `ML-DSA-65` `Verify()` immediately rejects the signature.
+1. **Exercise 1 (Fee Deduction):** Suppose Alice has **exactly** `250.000000000 ONXC` in her wallet (`0` spare nano-ONXC), and tries to send `250.000000000 ONXC` with `GasLimit = 21`, `GasPrice = 10`. Does her transaction succeed?  
+   <details><summary>Show Answer</summary>
+   **No — Insufficient Balance!** Alice needs `Amount + (GasLimit * GasPrice) = 250,000,000,000 + 210 = 250,000,000,210 nano-ONXC`, so she must send at most `249.999999790 ONXC`.
+   </details>
 
-2. **Which transaction type moves transparent ONXC into the private Shielded Pool?**  
-   *Answer:* `TxShield` (`0x06`, `GasShield = 50`).
+2. **Exercise 2 (Signing Failure):** Why is `Signature` NOT included inside `SigningPayload()`?  
+   <details><summary>Show Answer</summary>
+   Because `SigningPayload()` is the *input message* that generates the `Signature`! Once signed, `Hash()` hashes the full transaction including `PublicKey` and `Signature` to produce the unique transaction receipt ID.
+   </details>
