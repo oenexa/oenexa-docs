@@ -17,14 +17,14 @@ flowchart TB
 
 ### Complete Language Map for Blockchain Developers
 
-| Language | Primary Role in Web3 | Why Engineers Choose It | Role in OENEXA |
-| :--- | :--- | :--- | :--- |
-| **Go (`Golang`)** | Full Nodes, P2P, Consensus, RPC, CLIs | Fast compilation, simple syntax, built-in `goroutines` + `channels`, static binaries, massive networking/crypto ecosystem. | **Primary core language** of `oenexa-node`, `oenexa-cli`, consensus, mempool, SMT, RPC, and Rosetta (`go 1.26.2`). |
-| **WebAssembly (`WASM`)** | Portable Smart Contract Runtime | Hardware-neutral binary target, strict memory sandbox, multi-language compilation. | **`OenexaVM`** runs `.wasm` contracts inside pure-Go **`wazero v1.11.0`** (`internal/vm`). |
-| **Solidity** | EVM Smart Contracts | Dominant contract language for DeFi, tokens, DAOs, and governance across EVM-style apps. | Teaches EVM contract patterns; bridges conceptually to OENEXA's storage/caller/value ABI + `eth_*` RPC compatibility. |
-| **Rust / TinyGo** | High-speed WASM contracts & crypto nodes | Zero garbage collection, compile-time memory safety, compiles cleanly to compact `.wasm`. | Ideal for writing production smart contracts targeting `OenexaVM` `env.oen_*` host functions. |
-| **JavaScript / TypeScript** | Web3 dApps, Browser Wallets, Explorers | Runs in every browser, talks directly over HTTP/WebSocket JSON-RPC. | Powers our offline [`Visual Learning Studio`](../visual-lab/index.html) + Web3 wallet/frontend integrations. |
-| **Python** | Testing, Data Science, Oracles, Audits | Rapid prototyping, clean `hashlib` / HTTP tooling, financial modeling. | Great for oracle price fetchers, security verification scripts, and supply audits. |
+| Language                    | Primary Role in Web3                     | Why Engineers Choose It                                                                                                    | Role in OENEXA                                                                                                        |
+|:----------------------------|:-----------------------------------------|:---------------------------------------------------------------------------------------------------------------------------|:----------------------------------------------------------------------------------------------------------------------|
+| **Go (`Golang`)**           | Full Nodes, P2P, Consensus, RPC, CLIs    | Fast compilation, simple syntax, built-in `goroutines` + `channels`, static binaries, massive networking/crypto ecosystem. | **Primary core language** of `oenexa-node`, `oenexa-cli`, consensus, mempool, SMT, RPC, and Rosetta (`go 1.26.2`).    |
+| **WebAssembly (`WASM`)**    | Portable Smart Contract Runtime          | Hardware-neutral binary target, strict memory sandbox, multi-language compilation.                                         | **`OenexaVM`** runs `.wasm` contracts inside pure-Go **`wazero v1.11.0`** (`internal/vm`).                            |
+| **Solidity**                | EVM Smart Contracts                      | Dominant contract language for DeFi, tokens, DAOs, and governance across EVM-style apps.                                   | Teaches EVM contract patterns; bridges conceptually to OENEXA's storage/caller/value ABI + `eth_*` RPC compatibility. |
+| **Rust / TinyGo**           | High-speed WASM contracts & crypto nodes | Zero garbage collection, compile-time memory safety, compiles cleanly to compact `.wasm`.                                  | Ideal for writing production smart contracts targeting `OenexaVM` `env.oen_*` host functions.                         |
+| **JavaScript / TypeScript** | Web3 dApps, Browser Wallets, Explorers   | Runs in every browser, talks directly over HTTP/WebSocket JSON-RPC.                                                        | Powers our offline [`Visual Learning Studio`](../visual-lab/index.html) + Web3 wallet/frontend integrations.          |
+| **Python**                  | Testing, Data Science, Oracles, Audits   | Rapid prototyping, clean `hashlib` / HTTP tooling, financial modeling.                                                     | Great for oracle price fetchers, security verification scripts, and supply audits.                                    |
 
 ---
 
@@ -79,15 +79,15 @@ type Backend interface {
 ### Pillar D: Production Dependency Stack in `oenexa-node/go.mod`
 Every major dependency inside `oenexa-node/go.mod` solves one specific layer cleanly in **pure Go (zero CGO C-compiler headaches)**:
 
-| Real Package in `go.mod` | Layer | What It Powers in OENEXA |
-| :--- | :--- | :--- |
-| `github.com/cloudflare/circl v1.6.3` | Post-Quantum Cryptography | NIST FIPS 204 **`ML-DSA-65`** signatures & FIPS 203 **`ML-KEM-768`** note encryption. |
-| `golang.org/x/crypto v0.54.0` | Hashing & Key Hardening | FIPS 202 **`SHA-3-256`**, **`Argon2id`** keystore KDF, ChaCha/AEAD primitives. |
-| `github.com/tetratelabs/wazero v1.11.0` | Smart Contract Runtime | Pure-Go **WebAssembly VM (`OenexaVM`)** executing `.wasm` safely with zero CGO. |
-| `github.com/libp2p/go-libp2p v0.50.0` + `pubsub` | P2P Networking | Decentralized peer mesh, mDNS discovery, Noise/QUIC transport, gossip topics. |
-| `github.com/syndtr/goleveldb v1.0.0` | Persistence | Fast LSM-tree key-value database for blocks (`BlockStore`) & trie state (`StateStore`). |
-| `github.com/spf13/cobra v1.10.2` | CLI Framework | Ergonomic subcommands (`wallet new`, `query chain`, `tx send`). |
-| `github.com/prometheus/client_golang v1.24.1` | Observability | Exposes live chain height, mempool depth, burned fees on `:9090/metrics`. |
+| Real Package in `go.mod`                         | Layer                     | What It Powers in OENEXA                                                                |
+|:-------------------------------------------------|:--------------------------|:----------------------------------------------------------------------------------------|
+| `github.com/cloudflare/circl v1.6.3`             | Post-Quantum Cryptography | NIST FIPS 204 **`ML-DSA-65`** signatures & FIPS 203 **`ML-KEM-768`** note encryption.   |
+| `golang.org/x/crypto v0.54.0`                    | Hashing & Key Hardening   | FIPS 202 **`SHA-3-256`**, **`Argon2id`** keystore KDF, ChaCha/AEAD primitives.          |
+| `github.com/tetratelabs/wazero v1.11.0`          | Smart Contract Runtime    | Pure-Go **WebAssembly VM (`OenexaVM`)** executing `.wasm` safely with zero CGO.         |
+| `github.com/libp2p/go-libp2p v0.50.0` + `pubsub` | P2P Networking            | Decentralized peer mesh, mDNS discovery, Noise/QUIC transport, gossip topics.           |
+| `github.com/syndtr/goleveldb v1.0.0`             | Persistence               | Fast LSM-tree key-value database for blocks (`BlockStore`) & trie state (`StateStore`). |
+| `github.com/spf13/cobra v1.10.2`                 | CLI Framework             | Ergonomic subcommands (`wallet new`, `query chain`, `tx send`).                         |
+| `github.com/prometheus/client_golang v1.24.1`    | Observability             | Exposes live chain height, mempool depth, burned fees on `:9090/metrics`.               |
 
 ---
 

@@ -25,22 +25,22 @@ flowchart TD
 
 Every directory inside `oenexa-node` follows **strict Layer-1 blockchain-only boundaries** (no Exchange UIs, no KYC/identity UIs, no off-chain business bloat):
 
-| Package | Core Responsibilities | Key Types & Guarantees |
-| :--- | :--- | :--- |
-| `internal/core` | Blocks, Transactions, Fees, Tokenomics | `Block`, `Transaction`, `NextBaseFee`, `BlockReward`, `MaxSupply = 100M ONXC`. |
-| `internal/crypto` | Quantum-safe Keys, Hashes, Addresses | `Wallet`, `ML-DSA-65`, `SHA-3-256` (`Hash256`, `HashMany`), `HexToAddress`. |
-| `internal/keystore` | On-disk Password Encryption | `Argon2id` (`64 MiB`) + `AES-256-GCM` `keystore.json`. |
-| `internal/mempool` | Priority Waiting Room & Flood Caps | Max-heap by `GasPrice` desc + `Timestamp` asc; `DefaultMaxSize = 100k`, `MaxSenderQueueLen = 10k`. |
-| `internal/mpt` | Authenticated Account State Tree | `256`-bit Sparse Merkle Trie, `zeroHash` compression, `"t:"` DB prefix, order-independent `StateRoot`. |
-| `internal/state` | Transaction Execution & Block Processor | Balance updates, `Nonce` verification, `BaseFee` burn, `PriorityTip` payout, atomic state commits. |
-| `internal/shielded` | Dual-Pool Privacy Engine | `Note`, `"OENEXA_NOTE_CM"`, `"OENEXA_NULLIFIER"`, `NullifierSet`, `ML-KEM-768`, `ViewingKey`, `Turnstile`. |
-| `internal/vm` | Sandboxed Smart Contract Runtime | Pure-Go `wazero` WebAssembly, compiled module cache, `ExecutionContext` (`ReadOnly` + GasLimit), 8 `env.oen_*` ABI calls. |
-| `internal/consensus` | BFT Engine, Staking & Slashing | `StepPropose -> Prevote -> Precommit -> Commit`, `LocalSigner` anti-slashing, `10%` equivocation slash, `DelegationManager`. |
-| `internal/storage` | Persistent Key-Value Storage | LevelDB `BlockStore` & `StateStore` with atomic write batches (`NewBatch() -> Write()`). |
-| `internal/p2p` | Peer Mesh & Anti-Spam | `libp2p` host, mDNS discovery, 5 gossip topics (`/oenexa/tx`, `block`, `vote`, `syncreq`, `syncres`), peer reputation. |
-| `internal/sync` | Automatic Block Catch-Up | `Syncer` polling every `5s` in `64`-block verified batches. |
-| `internal/rpc` & `rosetta` | External APIs | JSON-RPC 2.0 (`onxc_*` + `eth_*`), Rosetta v1.4.14 REST + air-gapped construction. |
-| `internal/rollup`, `oracle`, `upgrade` | L2 Bridge, Valuation & Upgrades | L2 batch sequencer, median `ONXC-*` oracles, `SHA-3-256`-verified binary upgrades + `Scheduler`. |
+| Package                                | Core Responsibilities                   | Key Types & Guarantees                                                                                                       |
+|:---------------------------------------|:----------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------|
+| `internal/core`                        | Blocks, Transactions, Fees, Tokenomics  | `Block`, `Transaction`, `NextBaseFee`, `BlockReward`, `MaxSupply = 100M ONXC`.                                               |
+| `internal/crypto`                      | Quantum-safe Keys, Hashes, Addresses    | `Wallet`, `ML-DSA-65`, `SHA-3-256` (`Hash256`, `HashMany`), `HexToAddress`.                                                  |
+| `internal/keystore`                    | On-disk Password Encryption             | `Argon2id` (`64 MiB`) + `AES-256-GCM` `keystore.json`.                                                                       |
+| `internal/mempool`                     | Priority Waiting Room & Flood Caps      | Max-heap by `GasPrice` desc + `Timestamp` asc; `DefaultMaxSize = 100k`, `MaxSenderQueueLen = 10k`.                           |
+| `internal/mpt`                         | Authenticated Account State Tree        | `256`-bit Sparse Merkle Trie, `zeroHash` compression, `"t:"` DB prefix, order-independent `StateRoot`.                       |
+| `internal/state`                       | Transaction Execution & Block Processor | Balance updates, `Nonce` verification, `BaseFee` burn, `PriorityTip` payout, atomic state commits.                           |
+| `internal/shielded`                    | Dual-Pool Privacy Engine                | `Note`, `"OENEXA_NOTE_CM"`, `"OENEXA_NULLIFIER"`, `NullifierSet`, `ML-KEM-768`, `ViewingKey`, `Turnstile`.                   |
+| `internal/vm`                          | Sandboxed Smart Contract Runtime        | Pure-Go `wazero` WebAssembly, compiled module cache, `ExecutionContext` (`ReadOnly` + GasLimit), 8 `env.oen_*` ABI calls.    |
+| `internal/consensus`                   | BFT Engine, Staking & Slashing          | `StepPropose -> Prevote -> Precommit -> Commit`, `LocalSigner` anti-slashing, `10%` equivocation slash, `DelegationManager`. |
+| `internal/storage`                     | Persistent Key-Value Storage            | LevelDB `BlockStore` & `StateStore` with atomic write batches (`NewBatch() -> Write()`).                                     |
+| `internal/p2p`                         | Peer Mesh & Anti-Spam                   | `libp2p` host, mDNS discovery, 5 gossip topics (`/oenexa/tx`, `block`, `vote`, `syncreq`, `syncres`), peer reputation.       |
+| `internal/sync`                        | Automatic Block Catch-Up                | `Syncer` polling every `5s` in `64`-block verified batches.                                                                  |
+| `internal/rpc` & `rosetta`             | External APIs                           | JSON-RPC 2.0 (`onxc_*` + `eth_*`), Rosetta v1.4.14 REST + air-gapped construction.                                           |
+| `internal/rollup`, `oracle`, `upgrade` | L2 Bridge, Valuation & Upgrades         | L2 batch sequencer, median `ONXC-*` oracles, `SHA-3-256`-verified binary upgrades + `Scheduler`.                             |
 
 ---
 

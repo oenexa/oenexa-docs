@@ -38,16 +38,16 @@ Why doesn't OENEXA let smart contracts directly open your laptop's files or acce
 
 Every WASM contract imports these 8 capabilities (`internal/vm/vm.go`, `host.go`):
 
-| Host Function | Signature | What It Does | Concrete Use Example |
-| :--- | :--- | :--- | :--- |
-| `oen_get` | `(slot i32) -> i64` | Read `uint64` stored at contract `slot` | Read current vote count from slot `0` |
-| `oen_set` | `(slot i32, val i64)` | Store `uint64` at `slot` (reverts on failure!) | Save `voteCount + 1` into slot `0` |
-| `oen_transfer` | `(to_ptr i32, amt i64) -> i64` | Send `nano-ONXC` from contract balance | Release prize payout to winner |
-| `oen_balance` | `(addr_ptr i32) -> i64` | Query balance of any 32-byte address | Check vault ONXC reserve |
-| `oen_log` | `(ptr i32, len i32)` | Emit structured event log from WASM RAM | Emit `"VoteRecorded"` log |
-| `oen_caller` | `() -> i64` | Inspect calling sender (`CallerAddr`) | Verify caller is admin or club member |
-| `oen_block_height` | `() -> i64` | Read current block number (`BlockHeight`) | Check if election deadline passed |
-| `oen_value` | `() -> i64` | Read `nano-ONXC` attached (`Tx.Amount`) | Verify caller paid `>= 2 ONXC` |
+| Host Function      | Signature                      | What It Does                                   | Concrete Use Example                  |
+|:-------------------|:-------------------------------|:-----------------------------------------------|:--------------------------------------|
+| `oen_get`          | `(slot i32) -> i64`            | Read `uint64` stored at contract `slot`        | Read current vote count from slot `0` |
+| `oen_set`          | `(slot i32, val i64)`          | Store `uint64` at `slot` (reverts on failure!) | Save `voteCount + 1` into slot `0`    |
+| `oen_transfer`     | `(to_ptr i32, amt i64) -> i64` | Send `nano-ONXC` from contract balance         | Release prize payout to winner        |
+| `oen_balance`      | `(addr_ptr i32) -> i64`        | Query balance of any 32-byte address           | Check vault ONXC reserve              |
+| `oen_log`          | `(ptr i32, len i32)`           | Emit structured event log from WASM RAM        | Emit `"VoteRecorded"` log             |
+| `oen_caller`       | `() -> i64`                    | Inspect calling sender (`CallerAddr`)          | Verify caller is admin or club member |
+| `oen_block_height` | `() -> i64`                    | Read current block number (`BlockHeight`)      | Check if election deadline passed     |
+| `oen_value`        | `() -> i64`                    | Read `nano-ONXC` attached (`Tx.Amount`)        | Verify caller paid `>= 2 ONXC`        |
 
 ---
 

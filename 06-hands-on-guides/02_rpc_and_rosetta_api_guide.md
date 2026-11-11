@@ -14,29 +14,29 @@ Every JSON-RPC call sends an HTTP `POST` with `Content-Type: application/json`:
 
 ### Complete `onxc_*` Reference Table
 
-| Method | Parameters | Purpose & Key Returned Fields |
-| :--- | :--- | :--- |
-| `onxc_chainInfo` | `[]` | `chain_id` (`1`), `height`, `tip_hash`, `peer_count`, `mempool_len`, `base_fee`, `gas_limit`, `ticker` (`"ONXC"`). |
-| `onxc_blockHeight` | `null` | Latest finalized block height integer. |
-| `onxc_blockByHeight` | `[height]` | Full block header + transactions at `height`. |
-| `onxc_blockByHash` | `[blockHashHex]` | Block header + transactions by 32-byte block hash. |
-| `onxc_recentBlocks` | `[count]` | Latest `count` blocks (also aliased as `onxc_getLatestBlocks`). |
-| `onxc_getBalance` | `[addressHex]` | `balance_nano_onxc`, `balance_onxc`, `balance` (`nano-ONXC`). |
-| `onxc_getTransactionCount` | `[addressHex]` | Current `nonce` needed for your next transaction. |
-| `onxc_sendRawTransaction` | `[gobEncodedTxHex]` | Broadcasts a signed `ML-DSA-65` transaction; returns `tx_hash`. |
-| `onxc_getTransactionByHash` | `[txHashHex]` | Transaction metadata + block inclusion status. |
-| `onxc_getTransactionReceipt` | `[txHashHex]` | Execution receipt (`blockHash`, `blockNumber`, `gasUsed`, `status`). |
-| `onxc_call` | `[callObject]` | Read-only dry-run call to a WASM smart contract (no state writes). |
-| `onxc_gasPrice` | `null` | Current `base_fee` in `nano-ONXC/gas`. |
-| `onxc_feeEstimate` | `null` | `base_fee` + `transfer_ultra_low_nano_onxc`, `transfer_standard_nano_onxc`, `transfer_fast_nano_onxc`. |
-| `onxc_getShieldedBalance` | `null` | `shielded_balance_nano_onxc`, `tree_leaf_count`, `tree_root`. |
-| `onxc_getTurnstileStatus` | `null` | Transparent supply, shielded supply, total supply, and `invariant_preserved`. |
-| `onxc_getCirculatingSupply` | `null` | Current circulating supply & `100,000,000 ONXC` cap (`ticker: "ONXC"`). |
-| `onxc_getTotalSupply` | `null` | Total emitted, shielded pool, and hard cap metrics. |
-| `onxc_getTokenomics` | `null` | Current `BlockReward`, Halving Era, countdown, genesis allocations, and APY. |
-| `onxc_getStakingInfo` | `null` | Target bonded ratio (`0.67`), APY estimates at `50%`/`67%`/`80%`, unbonding period. |
-| `onxc_getDelegations` | `[addressHex]` | Delegations belonging to `addressHex`. |
-| `onxc_getTotalDelegated` | `[]` | `total_delegated` (`nano-ONXC`) and `total_delegated_onxc`. |
+| Method                       | Parameters          | Purpose & Key Returned Fields                                                                                      |
+|:-----------------------------|:--------------------|:-------------------------------------------------------------------------------------------------------------------|
+| `onxc_chainInfo`             | `[]`                | `chain_id` (`1`), `height`, `tip_hash`, `peer_count`, `mempool_len`, `base_fee`, `gas_limit`, `ticker` (`"ONXC"`). |
+| `onxc_blockHeight`           | `null`              | Latest finalized block height integer.                                                                             |
+| `onxc_blockByHeight`         | `[height]`          | Full block header + transactions at `height`.                                                                      |
+| `onxc_blockByHash`           | `[blockHashHex]`    | Block header + transactions by 32-byte block hash.                                                                 |
+| `onxc_recentBlocks`          | `[count]`           | Latest `count` blocks (also aliased as `onxc_getLatestBlocks`).                                                    |
+| `onxc_getBalance`            | `[addressHex]`      | `balance_nano_onxc`, `balance_onxc`, `balance` (`nano-ONXC`).                                                      |
+| `onxc_getTransactionCount`   | `[addressHex]`      | Current `nonce` needed for your next transaction.                                                                  |
+| `onxc_sendRawTransaction`    | `[gobEncodedTxHex]` | Broadcasts a signed `ML-DSA-65` transaction; returns `tx_hash`.                                                    |
+| `onxc_getTransactionByHash`  | `[txHashHex]`       | Transaction metadata + block inclusion status.                                                                     |
+| `onxc_getTransactionReceipt` | `[txHashHex]`       | Execution receipt (`blockHash`, `blockNumber`, `gasUsed`, `status`).                                               |
+| `onxc_call`                  | `[callObject]`      | Read-only dry-run call to a WASM smart contract (no state writes).                                                 |
+| `onxc_gasPrice`              | `null`              | Current `base_fee` in `nano-ONXC/gas`.                                                                             |
+| `onxc_feeEstimate`           | `null`              | `base_fee` + `transfer_ultra_low_nano_onxc`, `transfer_standard_nano_onxc`, `transfer_fast_nano_onxc`.             |
+| `onxc_getShieldedBalance`    | `null`              | `shielded_balance_nano_onxc`, `tree_leaf_count`, `tree_root`.                                                      |
+| `onxc_getTurnstileStatus`    | `null`              | Transparent supply, shielded supply, total supply, and `invariant_preserved`.                                      |
+| `onxc_getCirculatingSupply`  | `null`              | Current circulating supply & `100,000,000 ONXC` cap (`ticker: "ONXC"`).                                            |
+| `onxc_getTotalSupply`        | `null`              | Total emitted, shielded pool, and hard cap metrics.                                                                |
+| `onxc_getTokenomics`         | `null`              | Current `BlockReward`, Halving Era, countdown, genesis allocations, and APY.                                       |
+| `onxc_getStakingInfo`        | `null`              | Target bonded ratio (`0.67`), APY estimates at `50%`/`67%`/`80%`, unbonding period.                                |
+| `onxc_getDelegations`        | `[addressHex]`      | Delegations belonging to `addressHex`.                                                                             |
+| `onxc_getTotalDelegated`     | `[]`                | `total_delegated` (`nano-ONXC`) and `total_delegated_onxc`.                                                        |
 
 > **Web3 Client Compatibility:** Standard tools that expect `eth_*` RPC calls can also call `net_version`, `web3_clientVersion`, `eth_chainId`, `eth_blockNumber`, `eth_getBlockByNumber`, `eth_getBalance`, `eth_getTransactionCount`, `eth_sendRawTransaction`, `eth_call`, `eth_getTransactionReceipt`, `eth_getTransactionByHash`, and `eth_gasPrice`.
 

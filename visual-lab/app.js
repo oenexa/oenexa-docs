@@ -772,10 +772,64 @@
     $("model-out").innerHTML = `<strong>OENEXA Account Model (Sparse Merkle Trie):</strong><br/>Before: Alice = 10.000000000 ONXC | Bob = 0 ONXC<br/>After TxTransfer(3 ONXC): Alice = 6.999999790 ONXC | Bob = 3.000000000 ONXC (Direct integer balance delta — zero change outputs needed!)`;
   });
 
+  // ── DEEP CRYPTO VISUALIZERS (SPONGE & LATTICE TOY) ────────────────────────
+  function renderSponge() {
+    const txt = $("sp-input").value;
+    const raw = new TextEncoder().encode(txt);
+    const rem = raw.length % 136;
+    const padLen = 136 - rem;
+    const total = raw.length + padLen;
+    const blocksCnt = total / 136;
+
+    const padded = new Uint8Array(total);
+    padded.set(raw);
+    padded[raw.length] ^= 0x06;
+    padded[padded.length - 1] ^= 0x80;
+
+    $("sp-len").textContent = `${raw.length} B`;
+    $("sp-blocks").textContent = `${blocksCnt} block${blocksCnt > 1 ? "s" : ""}`;
+
+    const hex = (arr) => Array.from(arr).map((b) => b.toString(16).padStart(2, "0")).join(" ");
+    const head = hex(padded.slice(0, Math.min(20, padded.length)));
+    const tail = hex(padded.slice(padded.length - 8));
+    $("sp-padded").textContent = `[0..19]: ${head}  ...  [${total - 8}..${total - 1}]: ${tail}  (total ${total} B)`;
+    $("sp-digest").textContent = sha3_256Hex(txt);
+  }
+  $("sp-input").addEventListener("input", renderSponge);
+
+  function renderLattice() {
+    const q = 23;
+    const mod = (n) => ((n % q) + q) % q;
+    const A = [[4, 7], [9, 2]];
+    const s1 = [Number($("lat-s10").value) || 0, Number($("lat-s11").value) || 0];
+    const s2 = [0, 1];
+    const c = Number($("lat-c").value) || 1;
+    const y = [Number($("lat-y0").value) || 0, Number($("lat-y1").value) || 0];
+
+    const t = [mod(A[0][0] * s1[0] + A[0][1] * s1[1] + s2[0]), mod(A[1][0] * s1[0] + A[1][1] * s1[1] + s2[1])];
+    const w = [mod(A[0][0] * y[0] + A[0][1] * y[1]), mod(A[1][0] * y[0] + A[1][1] * y[1])];
+    const z = [y[0] + c * s1[0], y[1] + c * s1[1]];
+    const abort = Math.abs(z[0]) > 8 || Math.abs(z[1]) > 8;
+
+    const Az = [mod(A[0][0] * z[0] + A[0][1] * z[1]), mod(A[1][0] * z[0] + A[1][1] * z[1])];
+    const wPrime = [mod(Az[0] - c * t[0]), mod(Az[1] - c * t[1])];
+    const wMinusCs2 = [mod(w[0] - c * s2[0]), mod(w[1] - c * s2[1])];
+
+    $("lat-out").innerHTML = `
+      <strong>1. KeyGen:</strong> Public <code>t = A&middot;s1 + s2 mod 23 = [${t[0]}, ${t[1]}]</code><br/>
+      <strong>2. Sign:</strong> <code>w = A&middot;y = [${w[0]}, ${w[1]}]</code> | Response <code>z = [${z[0]}, ${z[1]}]</code>
+      ${abort ? '<span class="badge bad">ABORT &amp; RETRY! (|z| &gt; 8 leaks secret s1!)</span>' : '<span class="badge ok">REJECTION CHECK PASSED</span>'}<br/>
+      <strong>3. Verify:</strong> <code>A&middot;z - c&middot;t = [${wPrime[0]}, ${wPrime[1]}]</code> == <code>w - c&middot;s2 = [${wMinusCs2[0]}, ${wMinusCs2[1]}]</code> (Match: ${wPrime[0] === wMinusCs2[0] && wPrime[1] === wMinusCs2[1]})
+    `;
+  }
+  ["lat-s10", "lat-s11", "lat-c", "lat-y0", "lat-y1"].forEach((id) => $(id).addEventListener("input", renderLattice));
+
   // Boot all panels
   resetChain();
   renderAvalanche();
   renderAddress();
+  renderSponge();
+  renderLattice();
   renderTokenomics(1);
   renderFeeSim();
   resetMempool();

@@ -56,14 +56,14 @@ Suppose Dave later decides `GasPrice = 10` is too slow during heavy traffic and 
 
 Without gas, an attacker could deploy an infinite `for {}` loop smart contract and freeze every validator on Earth forever! Gas puts a strict price tag on every unit of CPU/storage work (`internal/core/types.go`):
 
-| Operation | Gas Cost | At Genesis (`BaseFee = 10`, Tip = `0`) | At Quiet Floor (`MinBaseFee = 1`, Tip = `0`) |
-| :--- | :--- | :--- | :--- |
-| **`TxTransfer`** (`0x01`) | **`21` gas** | `210 nano-ONXC` (`$0.00000021` @ `$1`/ONXC) | `21 nano-ONXC` (`$0.000000021`) |
-| **`TxShield`** (`0x06`) | **`50` gas** | `500 nano-ONXC` | `50 nano-ONXC` |
-| **`TxUnshield`** (`0x07`) | **`100` gas** | `1,000 nano-ONXC` | `100 nano-ONXC` |
-| **`TxShieldedTransfer`** (`0x08`) | **`150` gas** | `1,500 nano-ONXC` | `150 nano-ONXC` |
-| **`TxCall`** (`0x03`) | **`500` gas** (+ WASM step metering) | `5,000 nano-ONXC` | `500 nano-ONXC` |
-| **`TxDeploy`** (`0x02`) | **`5,000` gas** | `50,000 nano-ONXC` | `5,000 nano-ONXC` |
+| Operation                         | Gas Cost                             | At Genesis (`BaseFee = 10`, Tip = `0`)      | At Quiet Floor (`MinBaseFee = 1`, Tip = `0`) |
+|:----------------------------------|:-------------------------------------|:--------------------------------------------|:---------------------------------------------|
+| **`TxTransfer`** (`0x01`)         | **`21` gas**                         | `210 nano-ONXC` (`$0.00000021` @ `$1`/ONXC) | `21 nano-ONXC` (`$0.000000021`)              |
+| **`TxShield`** (`0x06`)           | **`50` gas**                         | `500 nano-ONXC`                             | `50 nano-ONXC`                               |
+| **`TxUnshield`** (`0x07`)         | **`100` gas**                        | `1,000 nano-ONXC`                           | `100 nano-ONXC`                              |
+| **`TxShieldedTransfer`** (`0x08`) | **`150` gas**                        | `1,500 nano-ONXC`                           | `150 nano-ONXC`                              |
+| **`TxCall`** (`0x03`)             | **`500` gas** (+ WASM step metering) | `5,000 nano-ONXC`                           | `500 nano-ONXC`                              |
+| **`TxDeploy`** (`0x02`)           | **`5,000` gas**                      | `50,000 nano-ONXC`                          | `5,000 nano-ONXC`                            |
 
 ---
 
@@ -111,11 +111,11 @@ To make fees **10x higher**: $(1.125)^k \ge 10 \implies k = \lceil \ln(10)/\ln(1
 
 From `FeeEstimate(baseFee, tier)` in `internal/core/fee.go` (using `baseFee = 10` on a standard `21`-gas `TxTransfer`):
 
-| Tier | Tip Rule | Per-Gas Price | Total `21`-Gas Transfer Cost | Burned vs. Validator Tip |
-| :--- | :--- | :--- | :--- | :--- |
-| **`FeeTierUltraLow`** | `tip = 0` | `10` | **`210 nano-ONXC`** | `210` burned / `0` tip |
-| **`FeeTierStandard`** | `tip = max(1, baseFee / 10)` (`+10%`) | `10 + 1 = 11` | **`231 nano-ONXC`** | `210` burned / `21` tip |
-| **`FeeTierFast`** | `tip = max(1, baseFee / 2)` (`+50%`) | `10 + 5 = 15` | **`315 nano-ONXC`** | `210` burned / `105` tip |
+| Tier                  | Tip Rule                              | Per-Gas Price | Total `21`-Gas Transfer Cost | Burned vs. Validator Tip |
+|:----------------------|:--------------------------------------|:--------------|:-----------------------------|:-------------------------|
+| **`FeeTierUltraLow`** | `tip = 0`                             | `10`          | **`210 nano-ONXC`**          | `210` burned / `0` tip   |
+| **`FeeTierStandard`** | `tip = max(1, baseFee / 10)` (`+10%`) | `10 + 1 = 11` | **`231 nano-ONXC`**          | `210` burned / `21` tip  |
+| **`FeeTierFast`**     | `tip = max(1, baseFee / 2)` (`+50%`)  | `10 + 5 = 15` | **`315 nano-ONXC`**          | `210` burned / `105` tip |
 
 ---
 

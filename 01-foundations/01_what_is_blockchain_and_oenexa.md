@@ -68,13 +68,13 @@ Think of transportation:
 - **Layer-2 (`internal/rollup`)** = Express toll lanes built *on top* of Layer-1.
   - An L2 sequencer bundles hundreds or thousands of fast off-chain transactions into a single compressed batch (`PreRoot -> PostRoot`) and settles proof back onto OENEXA Layer-1.
 
-| Feature | Legacy Classical Chains | OENEXA Layer-1 |
-| :--- | :--- | :--- |
-| **Quantum Resistance** | Vulnerable ECDSA / Ed25519 (can add later via hard fork) | Built-in Day 1 (`ML-DSA-65` + `ML-KEM-768` + `SHA-3-256`) |
-| **Finality Speed** | Often probabilistic (wait 6+ blocks) | Instant 1-block finality (`~2s`) via BFT Precommits |
-| **Native Transfer Fee** | Often `$0.01` to `$5.00+` | `21` gas × `10` nano-ONXC = `210 nano-ONXC` (`$0.00000021` at `$1`/ONXC) |
-| **Privacy Support** | Fully public balances only | Dual-Pool (Public + Shielded Notes + Supply Turnstile) |
-| **Monetary Cap** | Varies (some unlimited) | Strict `100,000,000 ONXC` mathematical hard cap |
+| Feature                 | Legacy Classical Chains                                  | OENEXA Layer-1                                                           |
+|:------------------------|:---------------------------------------------------------|:-------------------------------------------------------------------------|
+| **Quantum Resistance**  | Vulnerable ECDSA / Ed25519 (can add later via hard fork) | Built-in Day 1 (`ML-DSA-65` + `ML-KEM-768` + `SHA-3-256`)                |
+| **Finality Speed**      | Often probabilistic (wait 6+ blocks)                     | Instant 1-block finality (`~2s`) via BFT Precommits                      |
+| **Native Transfer Fee** | Often `$0.01` to `$5.00+`                                | `21` gas × `10` nano-ONXC = `210 nano-ONXC` (`$0.00000021` at `$1`/ONXC) |
+| **Privacy Support**     | Fully public balances only                               | Dual-Pool (Public + Shielded Notes + Supply Turnstile)                   |
+| **Monetary Cap**        | Varies (some unlimited)                                  | Strict `100,000,000 ONXC` mathematical hard cap                          |
 
 ---
 

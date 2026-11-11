@@ -17,9 +17,10 @@ Plain-language definitions for every term used across **OENEXA**, **ONXC**, and 
 - **Gas**: Measure of compute work (`21` transfer, `50` shield, `100` unshield, `150` shielded transfer, `500` contract call, `5,000` contract deploy; max `500,000,000` per block).
 - **Genesis Block (Height `0`)**: Initial block allocating `10,000,000 ONXC` (`5M` Treasury, `3M` Liquidity, `2M` Staking Bootstrap).
 - **Halving**: Cutting the validator `BlockReward` in half (`>> 1`) every `1,000,000` blocks (starting at `45 ONXC`), proving total supply never exceeds `100,000,000 ONXC`.
-- **Hash (`SHA-3-256`)**: FIPS 202 one-way cryptographic fingerprint producing `32 bytes` (`256 bits`).
-- **Keystore (`keystore.json`)**: Encrypted wallet file on disk locked with `Argon2id` + `AES-256-GCM`.
+- **Hash (`SHA-3-256` / `Keccak-f[1600]`)**: FIPS 202 Sponge hash (`Rate = 1,088 bits`, `Capacity = 512 bits`, `24` rounds of `Theta, Rho, Pi, Chi, Iota`) turning any input into a one-way `32`-byte fingerprint.
+- **Keystore (`keystore.json`)**: Your encrypted wallet file on disk (`0o600`) locked with `Argon2id` + `AES-256-GCM` (`CTR` + `GHASH` tag).
 - **Layer-1 (L1) / Layer-2 (L2)**: L1 (`OENEXA`) is the base settlement blockchain; L2 (`Rollup Sequencer`) executes batches off-chain and settles compressed proofs to L1.
+- **M-LWE & M-SIS**: Hard post-quantum Euclidean lattice problems (*Module Learning With Errors* and *Module Short Integer Solution*) over polynomial ring $R_q = \mathbb{Z}_q[X]/(X^{256}+1)$ underlying `ML-DSA-65` and `ML-KEM-768`.
 - **Mempool**: Priority Max-Heap (`DefaultMaxSize = 100,000`, `MaxSenderQueueLen = 10,000`) sorting waiting valid transactions by highest `GasPrice` and earliest `Timestamp`.
 - **ML-DSA-65 (FIPS 204)**: Post-quantum lattice digital signature algorithm (`1,952 B` pubKey, `4,032 B` privKey, `3,309 B` signature) resistant to quantum computers.
 - **ML-KEM-768 (FIPS 203)**: Post-quantum key encapsulation used to encrypt private Shielded Pool note payloads.
@@ -31,7 +32,8 @@ Plain-language definitions for every term used across **OENEXA**, **ONXC**, and 
 - **OenexaVM**: Pure-Go `wazero` WebAssembly smart contract sandbox featuring module caching, atomic rollback on out-of-gas, and 8 `env.oen_*` host functions.
 - **ONXC**: **Open Network for the Next Generation Coin** — native currency of OENEXA (`100,000,000` hard cap, `9` decimals).
 - **Oracle**: Off-chain reporter submitting signed prices for sovereign `ONXC` pairs (`ONXC-USD`, etc.) aggregated by Byzantine-resistant median.
-- **Priority Tip**: Optional fee above `BaseFee` paid directly to the block validator for faster queue placement.
+- **Priority Tip**: Optional extra fee per gas above `BaseFee` paid directly to the block validator for faster queue placement.
+- **Rejection Sampling (Fiat-Shamir with Aborts)**: Loop inside `ML-DSA-65` signing that discards any candidate signature `z = y + c*s1` whose size could reveal statistical information about the secret vector `s1`.
 - **Rosetta API (v1.4.14)**: Universal exchange/custody REST API supporting air-gapped offline signing.
 - **Slashing**: Removing `10%` of stake from a validator caught equivocating.
 - **Sparse Merkle Trie (SMT)**: Fixed `256`-bit binary cryptographic tree mapping 32-byte addresses using bit paths + `zeroHash` sentinels for order-independent `StateRoot` and `~1 KB` proofs.

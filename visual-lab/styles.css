@@ -23,7 +23,7 @@
 
 body {
   margin: 0;
-  font-family: var(--sans);
+  font-family: var(--sans), serif;
   background: radial-gradient(circle at top right, #162244, var(--bg) 55%);
   color: var(--text);
   line-height: 1.55;
@@ -245,7 +245,7 @@ button.action:disabled {
 }
 
 .stat .v {
-  font-family: var(--mono);
+  font-family: var(--mono), serif;
   font-size: 1.08rem;
   font-weight: 700;
   margin-top: 4px;
@@ -258,7 +258,7 @@ button.action:disabled {
   border-radius: 999px;
   font-size: 0.76rem;
   font-weight: 700;
-  font-family: var(--mono);
+  font-family: var(--mono), serif;
 }
 
 .badge.ok {
@@ -389,7 +389,7 @@ button.action:disabled {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 8px 10px;
-  font-family: var(--mono);
+  font-family: var(--mono), serif;
   font-size: 0.8rem;
 }
 

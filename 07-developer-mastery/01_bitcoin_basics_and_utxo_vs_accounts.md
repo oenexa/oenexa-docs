@@ -63,14 +63,14 @@ Compare that to **OENEXA BFT**:
 
 ## 4. Quick Comparison Matrix for Developers
 
-| Concept | Bitcoin (Gen-1) | OENEXA (Post-Quantum L1) |
-| :--- | :--- | :--- |
-| **State Model** | UTXO set (outputs consumed once) | Accounts (`Sparse Merkle Trie`) + Private `Notes` (`Shielded Pool`) |
-| **Signatures** | Classical `secp256k1` ECDSA / Schnorr | Post-Quantum NIST **`ML-DSA-65`** (FIPS 204) |
-| **Hash Function** | Double `SHA-256` | FIPS 202 **`SHA-3-256`** |
-| **Consensus** | Proof-of-Work (`~10 min` blocks) | BFT Proof-of-Stake (`2s` blocks) |
-| **Finality** | Probabilistic (`~6 confirmations`) | Instant (`1 block`, zero reorgs) |
-| **Programmability** | Limited non-Turing `Script` stack | Turing-complete **`OenexaVM`** (`wazero` WebAssembly) |
+| Concept             | Bitcoin (Gen-1)                       | OENEXA (Post-Quantum L1)                                            |
+|:--------------------|:--------------------------------------|:--------------------------------------------------------------------|
+| **State Model**     | UTXO set (outputs consumed once)      | Accounts (`Sparse Merkle Trie`) + Private `Notes` (`Shielded Pool`) |
+| **Signatures**      | Classical `secp256k1` ECDSA / Schnorr | Post-Quantum NIST **`ML-DSA-65`** (FIPS 204)                        |
+| **Hash Function**   | Double `SHA-256`                      | FIPS 202 **`SHA-3-256`**                                            |
+| **Consensus**       | Proof-of-Work (`~10 min` blocks)      | BFT Proof-of-Stake (`2s` blocks)                                    |
+| **Finality**        | Probabilistic (`~6 confirmations`)    | Instant (`1 block`, zero reorgs)                                    |
+| **Programmability** | Limited non-Turing `Script` stack     | Turing-complete **`OenexaVM`** (`wazero` WebAssembly)               |
 
 ---
 

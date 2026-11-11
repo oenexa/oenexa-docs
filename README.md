@@ -19,15 +19,15 @@ This repository is written from scratch for **students, first-time blockchain le
 
 Launch **[`visual-lab/index.html`](./visual-lab/index.html)** directly in Chrome, Edge, Firefox, or Safari (works 100% offline with real `SHA-3-256` math!):
 
-| Interactive Lab Tab | What You Can Experiment With Visually | Related Chapters |
-| :--- | :--- | :--- |
-| [**1. Blockchain & Hash Lab**](./visual-lab/index.html#blockchain) | Edit Block 1 transactions to see chain links break red, inspect 256-bit `SHA-3-256` avalanche bit-flips, and derive `onxc...` addresses live. | Ch. 1, Ch. 3 |
-| [**2. ONXC Tokenomics Lab**](./visual-lab/index.html#tokenomics) | Scrub across Block Heights `0` to `8,000,000+`, watch the supply curve approach the `100,000,000 ONXC` hard cap, convert `nano-ONXC`, and calculate staking APY. | Ch. 2 |
-| [**3. Mempool & Gas Lab**](./visual-lab/index.html#fees) | Drag block fullness (`0%` to `100%`) to watch EIP-1559 `BaseFee` surge/cool, pack priority-queue transactions, and see burned vs. validator tip fees. | Ch. 5, Ch. 6 |
-| [**4. Merkle Trie Proof Lab**](./visual-lab/index.html#trie) | Change Alice/Bob/Carol/Dave balances, highlight exact Merkle sibling proof paths, prove empty accounts via `zeroHash`, and verify order independence. | Ch. 7 |
-| [**5. BFT & Slashing Lab**](./visual-lab/index.html#bft) | Toggle validators (`Honest`, `Offline`, `Double-Sign`), step through `Propose -> Prevote -> Precommit -> Commit`, watch `10%` slashing fire, and split staking rewards. | Ch. 8, Ch. 9 |
-| [**6. Privacy Turnstile & VM Lab**](./visual-lab/index.html#privacy) | Shield and unshield ONXC notes, trigger a live double-spend nullifier rejection, inspect `Transparent + Shielded == TotalSupply`, and trace OenexaVM gas rollbacks. | Ch. 10, Ch. 11 |
-| [**7. Dev Path & DeFi AMM Lab**](./visual-lab/index.html#devlab) | Swap ONXC inside a live `x * y = k` DeFi pool, compare UTXO bills vs. OENEXA accounts, and simulate a Reentrancy attack vs. Checks-Effects-Interactions defense. | Developer Mastery |
+| Interactive Lab Tab                                                  | What You Can Experiment With Visually                                                                                                                                   | Related Chapters  |
+|:---------------------------------------------------------------------|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------|:------------------|
+| [**1. Blockchain & Hash Lab**](./visual-lab/index.html#blockchain)   | Edit Block 1 transactions to see chain links break red, inspect 256-bit `SHA-3-256` avalanche bit-flips, and derive `onxc...` addresses live.                           | Ch. 1, Ch. 3      |
+| [**2. ONXC Tokenomics Lab**](./visual-lab/index.html#tokenomics)     | Scrub across Block Heights `0` to `8,000,000+`, watch the supply curve approach the `100,000,000 ONXC` hard cap, convert `nano-ONXC`, and calculate staking APY.        | Ch. 2             |
+| [**3. Mempool & Gas Lab**](./visual-lab/index.html#fees)             | Drag block fullness (`0%` to `100%`) to watch EIP-1559 `BaseFee` surge/cool, pack priority-queue transactions, and see burned vs. validator tip fees.                   | Ch. 5, Ch. 6      |
+| [**4. Merkle Trie Proof Lab**](./visual-lab/index.html#trie)         | Change Alice/Bob/Carol/Dave balances, highlight exact Merkle sibling proof paths, prove empty accounts via `zeroHash`, and verify order independence.                   | Ch. 7             |
+| [**5. BFT & Slashing Lab**](./visual-lab/index.html#bft)             | Toggle validators (`Honest`, `Offline`, `Double-Sign`), step through `Propose -> Prevote -> Precommit -> Commit`, watch `10%` slashing fire, and split staking rewards. | Ch. 8, Ch. 9      |
+| [**6. Privacy Turnstile & VM Lab**](./visual-lab/index.html#privacy) | Shield and unshield ONXC notes, trigger a live double-spend nullifier rejection, inspect `Transparent + Shielded == TotalSupply`, and trace OenexaVM gas rollbacks.     | Ch. 10, Ch. 11    |
+| [**7. Dev Path & DeFi AMM Lab**](./visual-lab/index.html#devlab)     | Swap ONXC inside a live `x * y = k` DeFi pool, compare UTXO bills vs. OENEXA accounts, and simulate a Reentrancy attack vs. Checks-Effects-Interactions defense.        | Developer Mastery |
 
 ---
 
@@ -49,19 +49,19 @@ flowchart LR
     P10 --> P11["11. Build Your Own\nMini Blockchain"]
 ```
 
-| Stage | Topic | Guide |
-| :--- | :--- | :--- |
-| **1** | **Programming Languages In-Depth (Go, WASM, Rust, JS, Solidity & `oenexa-node`)** | [**00-developer-roadmap/01_programming_languages_and_oenexa_depth.md**](./00-developer-roadmap/01_programming_languages_and_oenexa_depth.md) |
-| **2** | **Cryptography (`SHA-3-256`, `ML-DSA-65`, `Argon2id` + `AES-256-GCM`)** | [**Ch. 3**](./02-cryptography/01_hashing_and_addresses.md) & [**Ch. 4**](./02-cryptography/02_post_quantum_signatures_mldsa65.md) |
-| **3** | **Bitcoin Basics (UTXO Bills vs. Accounts, PoW vs. BFT)** | [**07-developer-mastery/01_bitcoin_basics_and_utxo_vs_accounts.md**](./07-developer-mastery/01_bitcoin_basics_and_utxo_vs_accounts.md) |
-| **4** | **Ethereum (Accounts, World State, EIP-1559 & Web3 Compatibility)** | [**07-developer-mastery/02_ethereum_evm_and_web3_concepts.md**](./07-developer-mastery/02_ethereum_evm_and_web3_concepts.md) |
-| **5** | **Solidity (State, Modifiers, Events & Mapping to `OenexaVM`)** | [**07-developer-mastery/03_solidity_basics_and_wasm_bridge.md**](./07-developer-mastery/03_solidity_basics_and_wasm_bridge.md) |
-| **6** | **Smart Contracts (`OenexaVM` WASM Runtime & M-of-N Multisig)** | [**Ch. 11**](./05-privacy-contracts-and-scaling/02_smart_contracts_wasm_vm.md) |
-| **7** | **Web3 Projects (Full-Stack dApp, Treasury & Rosetta Architecture)** | [**07-developer-mastery/04_web3_projects_and_dapp_architecture.md**](./07-developer-mastery/04_web3_projects_and_dapp_architecture.md) |
-| **8** | **Security (Reentrancy, Overflow, Replay, Double-Sign & Nullifiers)** | [**07-developer-mastery/05_blockchain_and_contract_security.md**](./07-developer-mastery/05_blockchain_and_contract_security.md) |
-| **9** | **DeFi (`x*y=k` AMMs, Lending LTV, Median Oracles & Staking Yield)** | [**07-developer-mastery/06_defi_primitives_amm_oracles_staking.md**](./07-developer-mastery/06_defi_primitives_amm_oracles_staking.md) |
-| **10** | **Blockchain Core (Inside `oenexa-node` Architecture & Block Pipeline)** | [**07-developer-mastery/07_blockchain_core_oenexa_internals.md**](./07-developer-mastery/07_blockchain_core_oenexa_internals.md) |
-| **11** | **Build Your Own Blockchain (Complete Runnable Go Project)** | [**07-developer-mastery/08_build_your_own_blockchain.md**](./07-developer-mastery/08_build_your_own_blockchain.md) |
+| Stage  | Topic                                                                             | Guide                                                                                                                                        |
+|:-------|:----------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------|
+| **1**  | **Programming Languages In-Depth (Go, WASM, Rust, JS, Solidity & `oenexa-node`)** | [**00-developer-roadmap/01_programming_languages_and_oenexa_depth.md**](./00-developer-roadmap/01_programming_languages_and_oenexa_depth.md) |
+| **2**  | **Cryptography (`SHA-3-256` Sponge, `ML-DSA-65`, `ML-KEM-768`, `Argon2id` + `AES-256-GCM`)** | [**Ch. 3**](./02-cryptography/01_hashing_and_addresses.md), [**Ch. 4**](./02-cryptography/02_post_quantum_signatures_mldsa65.md) & [**Ch. 4B**](./02-cryptography/03_whole_system_crypto_kem_and_keystore.md) |
+| **3**  | **Bitcoin Basics (UTXO Bills vs. Accounts, PoW vs. BFT)**                         | [**07-developer-mastery/01_bitcoin_basics_and_utxo_vs_accounts.md**](./07-developer-mastery/01_bitcoin_basics_and_utxo_vs_accounts.md)       |
+| **4**  | **Ethereum (Accounts, World State, EIP-1559 & Web3 Compatibility)**               | [**07-developer-mastery/02_ethereum_evm_and_web3_concepts.md**](./07-developer-mastery/02_ethereum_evm_and_web3_concepts.md)                 |
+| **5**  | **Solidity (State, Modifiers, Events & Mapping to `OenexaVM`)**                   | [**07-developer-mastery/03_solidity_basics_and_wasm_bridge.md**](./07-developer-mastery/03_solidity_basics_and_wasm_bridge.md)               |
+| **6**  | **Smart Contracts (`OenexaVM` WASM Runtime & M-of-N Multisig)**                   | [**Ch. 11**](./05-privacy-contracts-and-scaling/02_smart_contracts_wasm_vm.md)                                                               |
+| **7**  | **Web3 Projects (Full-Stack dApp, Treasury & Rosetta Architecture)**              | [**07-developer-mastery/04_web3_projects_and_dapp_architecture.md**](./07-developer-mastery/04_web3_projects_and_dapp_architecture.md)       |
+| **8**  | **Security (Reentrancy, Overflow, Replay, Double-Sign & Nullifiers)**             | [**07-developer-mastery/05_blockchain_and_contract_security.md**](./07-developer-mastery/05_blockchain_and_contract_security.md)             |
+| **9**  | **DeFi (`x*y=k` AMMs, Lending LTV, Median Oracles & Staking Yield)**              | [**07-developer-mastery/06_defi_primitives_amm_oracles_staking.md**](./07-developer-mastery/06_defi_primitives_amm_oracles_staking.md)       |
+| **10** | **Blockchain Core (Inside `oenexa-node` Architecture & Block Pipeline)**          | [**07-developer-mastery/07_blockchain_core_oenexa_internals.md**](./07-developer-mastery/07_blockchain_core_oenexa_internals.md)             |
+| **11** | **Build Your Own Blockchain (Complete Runnable Go Project)**                      | [**07-developer-mastery/08_build_your_own_blockchain.md**](./07-developer-mastery/08_build_your_own_blockchain.md)                           |
 
 ---
 
@@ -74,10 +74,12 @@ flowchart LR
    *Why `nano-ONXC` integers prevent rounding bugs, genesis allocations (`5M + 3M + 2M`), bit-shift halvings every 1M blocks, geometric-series `100M` cap proof, fee burns, and staking APY math.*
 
 ### Module 2: Cryptography — How Security & Wallets Work Without Banks
-3. [**Chapter 3: Digital Fingerprints (`SHA-3-256`) & Wallet Addresses**](./02-cryptography/01_hashing_and_addresses.md)  
-   *Irreversible blending analogy, real 53.1% avalanche bit-flip example, `PublicKey -> SHA-3-256 -> Address`, and `HexToAddress` format normalization.*
-4. [**Chapter 4: Post-Quantum Signatures (`ML-DSA-65`) & Encrypted Keystores**](./02-cryptography/02_post_quantum_signatures_mldsa65.md)  
-   *Why Shor's algorithm threatens old chains, lattice math security, exact byte sizes (`1,952 B / 4,032 B / 3,309 B`), RAM zeroization, and `Argon2id` + `AES-256-GCM` `keystore.json` walkthrough.*
+3. [**Chapter 3: Digital Fingerprints (`SHA-3-256` Keccak Sponge) & Addresses**](./02-cryptography/01_hashing_and_addresses.md)  
+   *Bitwise logic, Keccak-f[1600] Sponge (`Rate`, `Capacity`, `0x06...0x80` padding, `Theta/Rho/Pi/Chi/Iota`), why `Chi` stops reversal, `53.1%` avalanche bit-flips, and `HexToAddress` normalization.*
+4. [**Chapter 4: Post-Quantum Signatures (`ML-DSA-65`) — Internal Mechanics**](./02-cryptography/02_post_quantum_signatures_mldsa65.md)  
+   *How classical discrete logs work, how Shor's quantum algorithm breaks ECC/RSA, lattice `M-LWE`/`M-SIS` intuition, and a complete pencil-and-paper `KeyGen -> Rejection Sign -> Verify` trace.*
+5. [**Chapter 4B: `ML-KEM-768`, Encrypted Keystores & Whole-System Crypto Map**](./02-cryptography/03_whole_system_crypto_kem_and_keystore.md)  
+   *How `ML-KEM-768` seals private notes, how `Argon2id` (`64 MiB`) + `AES-256-GCM` (`CTR` + `GHASH`) lock `keystore.json`, and how all 5 crypto engines interlock across `oenexa-node`.*
 
 ### Module 3: Transactions, Fees & Network State
 5. [**Chapter 5: How Transactions Work Step-by-Step**](./03-transactions-and-state/01_how_transactions_work.md)  

@@ -72,6 +72,39 @@
           <div class="mono-box" id="addr-bare"></div>
         </div>
       </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Inside <code>SHA-3-256</code>: Keccak-f[1600] Sponge Padding &amp; Absorbing</h3>
+          <p class="muted">See how your text pads with FIPS 202 domain <code>0x06 ... 0x80</code> into a <code>136</code>-byte <strong>Rate</strong> (Lanes <code>0..16</code>) while keeping <code>64</code>-byte <strong>Capacity</strong> (Lanes <code>17..24</code>) hidden, mixes 24 rounds (<code>Theta &rarr; Rho &rarr; Pi &rarr; Chi &rarr; Iota</code>), and squeezes 4 lanes!</p>
+          <label for="sp-input">Input Text to Feed Into Sponge</label>
+          <input type="text" id="sp-input" value="ONXC" />
+          <div class="stat-grid">
+            <div class="stat"><div class="k">Raw Input Bytes</div><div class="v" id="sp-len">4 B</div></div>
+            <div class="stat"><div class="k">Rate Blocks (136B)</div><div class="v" id="sp-blocks">1 block</div></div>
+            <div class="stat"><div class="k">Hidden Capacity</div><div class="v">64 B (512 bits)</div></div>
+          </div>
+          <label>1. Padded Rate Bytes (Hex — showing start + domain pad <code>0x06 ... 0x80</code>)</label>
+          <div class="mono-box" id="sp-padded"></div>
+          <label style="margin-top:8px;">2. Squeezed Output Lanes 0..3 (32 Bytes = Final Digest)</label>
+          <div class="mono-box" id="sp-digest"></div>
+        </div>
+
+        <div class="card">
+          <h3>Inside <code>ML-DSA-65</code>: Lattice KeyGen, Rejection Sign &amp; Verify (mod 23)</h3>
+          <p class="muted">Toy matrix <code>A = [[4,7],[9,2]]</code> mod 23 showing the exact real algebra: <code>t = A*s1 + s2</code>, <code>z = y + c*s1</code>, and verifier check <code>A*z - c*t == w - c*s2</code>!</p>
+          <div class="grid-3">
+            <div><label>Secret <code>s1[0]</code></label><input type="number" id="lat-s10" value="1" min="-2" max="2" /></div>
+            <div><label>Secret <code>s1[1]</code></label><input type="number" id="lat-s11" value="-1" min="-2" max="2" /></div>
+            <div><label>Challenge <code>c</code></label><input type="number" id="lat-c" value="1" min="1" max="2" /></div>
+          </div>
+          <div class="grid-2" style="margin-top:8px;">
+            <div><label>Random Mask <code>y[0]</code> (try 10 to trigger Abort!)</label><input type="number" id="lat-y0" value="3" min="-10" max="10" /></div>
+            <div><label>Random Mask <code>y[1]</code></label><input type="number" id="lat-y1" value="4" min="-10" max="10" /></div>
+          </div>
+          <div class="mono-box" id="lat-out" style="margin-top:10px;"></div>
+        </div>
+      </div>
     </section>
 
     <!-- 2. ONXC TOKENOMICS -->
