@@ -83,14 +83,14 @@ Notice that Solidity's globals are not magic — every single one translates dir
 
 | Solidity Construct | What It Means | Equivalent `OenexaVM` Host Call (`internal/vm`) |
 | :--- | :--- | :--- |
-| State variable read (`totalVault`) | Read persistent storage slot | `env.oen_get(slot i32) -> i64` |
-| State variable write (`totalVault = 0`) | Mutate persistent storage slot | `env.oen_set(slot i32, value i64)` |
-| `msg.sender` | Address calling the contract | `env.oen_caller() -> i64` (`CallerAddr`) |
-| `msg.value` | Native coin attached to the call | `env.oen_value() -> i64` (`ExecutionContext.Value`) |
-| `block.number` | Current chain block height | `env.oen_block_height() -> i64` |
-| `address(x).balance` | Query coin balance of address `x` | `env.oen_balance(addr_ptr i32) -> i64` |
-| `payable(to).transfer(amt)` | Transfer native `nano-ONXC` from contract | `env.oen_transfer(to_ptr i32, amt i64) -> i64` |
-| `emit Deposited(...)` | Record verifiable event log | `env.oen_log(ptr i32, len i32)` |
+| State variable read (`totalVault`) | Read persistent storage slot | `env.onxc_get(slot i32) -> i64` |
+| State variable write (`totalVault = 0`) | Mutate persistent storage slot | `env.onxc_set(slot i32, value i64)` |
+| `msg.sender` | Address calling the contract | `env.onxc_caller() -> i64` (`CallerAddr`) |
+| `msg.value` | Native coin attached to the call | `env.onxc_value() -> i64` (`ExecutionContext.Value`) |
+| `block.number` | Current chain block height | `env.onxc_block_height() -> i64` |
+| `address(x).balance` | Query coin balance of address `x` | `env.onxc_balance(addr_ptr i32) -> i64` |
+| `payable(to).transfer(amt)` | Transfer native `nano-ONXC` from contract | `env.onxc_transfer(to_ptr i32, amt i64) -> i64` |
+| `emit Deposited(...)` | Record verifiable event log | `env.onxc_log(ptr i32, len i32)` |
 | `revert(...)` / `require(...)` | Abort & undo all writes cleanly | Returns non-zero exit / atomic StateDB rollback |
 
 Look at `CounterContractWASM` inside `internal/vm/contract.go` — its WAT implementation of `increment()` literally runs:
@@ -98,10 +98,10 @@ Look at `CounterContractWASM` inside `internal/vm/contract.go` — its WAT imple
 (func (export "increment")
   i32.const 0
   i32.const 0
-  call $get        ;; env.oen_get(0) -> reads uint256 slot equivalent
+  call $get        ;; env.onxc_get(0) -> reads uint256 slot equivalent
   i64.const 1
   i64.add
-  call $set        ;; env.oen_set(0, count + 1)
+  call $set        ;; env.onxc_set(0, count + 1)
 )
 ```
 Once you understand Solidity's storage/caller/value/revert rules, you already understand **100% of the mental model** behind `OenexaVM`, Move, CosmWasm, and Anchor/Rust contracts!
@@ -117,5 +117,5 @@ Once you understand Solidity's storage/caller/value/revert rules, you already un
 
 2. **Exercise 2 (`OenexaVM` Translation):** Which `OenexaVM` host function corresponds to Solidity's `block.number`?  
    <details><summary>Show Answer</summary>
-   `env.oen_block_height()`.
+   `env.onxc_block_height()`.
    </details>

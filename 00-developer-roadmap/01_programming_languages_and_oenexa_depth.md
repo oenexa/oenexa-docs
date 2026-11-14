@@ -22,7 +22,7 @@ flowchart TB
 | **Go (`Golang`)**           | Full Nodes, P2P, Consensus, RPC, CLIs    | Fast compilation, simple syntax, built-in `goroutines` + `channels`, static binaries, massive networking/crypto ecosystem. | **Primary core language** of `oenexa-node`, `oenexa-cli`, consensus, mempool, SMT, RPC, and Rosetta (`go 1.26.2`).    |
 | **WebAssembly (`WASM`)**    | Portable Smart Contract Runtime          | Hardware-neutral binary target, strict memory sandbox, multi-language compilation.                                         | **`OenexaVM`** runs `.wasm` contracts inside pure-Go **`wazero v1.11.0`** (`internal/vm`).                            |
 | **Solidity**                | EVM Smart Contracts                      | Dominant contract language for DeFi, tokens, DAOs, and governance across EVM-style apps.                                   | Teaches EVM contract patterns; bridges conceptually to OENEXA's storage/caller/value ABI + `eth_*` RPC compatibility. |
-| **Rust / TinyGo**           | High-speed WASM contracts & crypto nodes | Zero garbage collection, compile-time memory safety, compiles cleanly to compact `.wasm`.                                  | Ideal for writing production smart contracts targeting `OenexaVM` `env.oen_*` host functions.                         |
+| **Rust / TinyGo**           | High-speed WASM contracts & crypto nodes | Zero garbage collection, compile-time memory safety, compiles cleanly to compact `.wasm`.                                  | Ideal for writing production smart contracts targeting `OenexaVM` `env.onxc_*` host functions.                        |
 | **JavaScript / TypeScript** | Web3 dApps, Browser Wallets, Explorers   | Runs in every browser, talks directly over HTTP/WebSocket JSON-RPC.                                                        | Powers our offline [`Visual Learning Studio`](../visual-lab/index.html) + Web3 wallet/frontend integrations.          |
 | **Python**                  | Testing, Data Science, Oracles, Audits   | Rapid prototyping, clean `hashlib` / HTTP tooling, financial modeling.                                                     | Great for oracle price fetchers, security verification scripts, and supply audits.                                    |
 
@@ -95,7 +95,7 @@ Every major dependency inside `oenexa-node/go.mod` solves one specific layer cle
 
 How can a Go program safely run untrusted user-submitted smart contracts? Inside `internal/vm/contract.go` & `vm.go`, OENEXA embeds **`wazero` (WebAssembly)**:
 
-1. **Developer writes contract logic** (in WAT, Rust, C, or TinyGo) importing OENEXA's 8 `"env"` functions (`oen_get`, `oen_set`, `oen_transfer`, `oen_balance`, `oen_log`, `oen_caller`, `oen_block_height`, `oen_value`).
+1. **Developer writes contract logic** (in WAT, Rust, C, or TinyGo) importing OENEXA's 8 `"env"` functions (`onxc_get`, `onxc_set`, `onxc_transfer`, `onxc_balance`, `onxc_log`, `onxc_caller`, `onxc_block_height`, `onxc_value`).
 2. **Compiler outputs raw `.wasm` binary bytecode** starting with the WASM magic header `\x00asm\x01\x00\x00\x00`.
 3. **`TxDeploy` stores and hashes bytecode** (`SHA-3-256`), caching the compiled `wazero` module.
 4. **`TxCall` instantiates a sandboxed execution context** (`ExecutionContext` tracking `GasLimit`, `GasUsed`, `ReadOnly`) and calls the exported WASM function (e.g., `increment()`).
@@ -103,10 +103,10 @@ How can a Go program safely run untrusted user-submitted smart contracts? Inside
 ```text
 Go Host (oenexa-node)                         Sandboxed WASM Guest (.wasm)
 -----------------------                       ------------------------------
-Implements env.oen_get(0)  <--- Host Call --- i32.const 0 -> call $get
-Reads StateDB Slot 0 = 5   --- Returns 5 ---> i64 on stack (5)
+Implements env.onxc_get(0)  <-- Host Call --- i32.const 0 -> call $get
+Reads StateDB Slot 0 = 5    --- Returns 5 --> i64 on stack (5)
                                               i64.const 1 -> i64.add (6)
-Implements env.oen_set(0,6)<--- Host Call --- i32.const 0, i64(6) -> call $set
+Implements env.onxc_set(0,6)<-- Host Call --- i32.const 0, i64(6) -> call $set
 Commits 6 to StateDB (or rolls back on Out-of-Gas!)
 ```
 

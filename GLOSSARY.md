@@ -29,7 +29,7 @@ Plain-language definitions for every term used across **OENEXA**, **ONXC**, and 
 - **Nonce**: Sequential per-sender transaction counter (`0, 1, 2, ...`) stopping replay attacks.
 - **Nullifier**: Unique deterministic tag (`"OENEXA_NULLIFIER"`) published once inside `NullifierSet` when spending a shielded note, blocking double-spends privately.
 - **OENEXA**: Sovereign, post-quantum Layer-1 blockchain platform (`ChainID = 1`, `ProtocolVersion = 1`).
-- **OenexaVM**: Pure-Go `wazero` WebAssembly smart contract sandbox featuring module caching, atomic rollback on out-of-gas, and 8 `env.oen_*` host functions.
+- **OenexaVM**: Pure-Go `wazero` WebAssembly smart contract sandbox featuring module caching, atomic rollback on out-of-gas, and 8 `env.onxc_*` host functions.
 - **ONXC**: **Open Network for the Next Generation Coin** — native currency of OENEXA (`100,000,000` hard cap, `9` decimals).
 - **Oracle**: Off-chain reporter submitting signed prices for sovereign `ONXC` pairs (`ONXC-USD`, etc.) aggregated by Byzantine-resistant median.
 - **Priority Tip**: Optional extra fee per gas above `BaseFee` paid directly to the block validator for faster queue placement.

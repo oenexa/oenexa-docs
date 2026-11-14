@@ -684,11 +684,11 @@
     }
     const cost = action === "loop" ? 1500 : 450;
     if (mode === "readonly") {
-      $("vm-out").innerHTML = `<span class="badge warn">READ-ONLY DRY RUN</span> Read Slot #0 = ${vmCommittedSlot} (would become ${vmCommittedSlot + 1}), gas=${cost}. <code>oen_set</code> skipped! Committed Slot #0 stays <strong>${vmCommittedSlot}</strong>.`;
+      $("vm-out").innerHTML = `<span class="badge warn">READ-ONLY DRY RUN</span> Read Slot #0 = ${vmCommittedSlot} (would become ${vmCommittedSlot + 1}), gas=${cost}. <code>onxc_set</code> skipped! Committed Slot #0 stays <strong>${vmCommittedSlot}</strong>.`;
       return;
     }
     vmCommittedSlot += 1;
-    $("vm-out").innerHTML = `<span class="badge ok">COMMITTED</span> <code>oen_get(0)</code>=${vmCommittedSlot - 1} &rarr; <code>oen_set(0, ${vmCommittedSlot})</code>, GasUsed=${cost}/${limit}. Committed Slot #0 is now <strong>${vmCommittedSlot}</strong>.`;
+    $("vm-out").innerHTML = `<span class="badge ok">COMMITTED</span> <code>onxc_get(0)</code>=${vmCommittedSlot - 1} &rarr; <code>onxc_set(0, ${vmCommittedSlot})</code>, GasUsed=${cost}/${limit}. Committed Slot #0 is now <strong>${vmCommittedSlot}</strong>.`;
   });
 
   // ── 7. DEVELOPER PATH: DEFI AMM, SECURITY & UTXO vs ACCOUNT ───────────────

@@ -38,16 +38,16 @@ Why doesn't OENEXA let smart contracts directly open your laptop's files or acce
 
 Every WASM contract imports these 8 capabilities (`internal/vm/vm.go`, `host.go`):
 
-| Host Function      | Signature                      | What It Does                                   | Concrete Use Example                  |
-|:-------------------|:-------------------------------|:-----------------------------------------------|:--------------------------------------|
-| `oen_get`          | `(slot i32) -> i64`            | Read `uint64` stored at contract `slot`        | Read current vote count from slot `0` |
-| `oen_set`          | `(slot i32, val i64)`          | Store `uint64` at `slot` (reverts on failure!) | Save `voteCount + 1` into slot `0`    |
-| `oen_transfer`     | `(to_ptr i32, amt i64) -> i64` | Send `nano-ONXC` from contract balance         | Release prize payout to winner        |
-| `oen_balance`      | `(addr_ptr i32) -> i64`        | Query balance of any 32-byte address           | Check vault ONXC reserve              |
-| `oen_log`          | `(ptr i32, len i32)`           | Emit structured event log from WASM RAM        | Emit `"VoteRecorded"` log             |
-| `oen_caller`       | `() -> i64`                    | Inspect calling sender (`CallerAddr`)          | Verify caller is admin or club member |
-| `oen_block_height` | `() -> i64`                    | Read current block number (`BlockHeight`)      | Check if election deadline passed     |
-| `oen_value`        | `() -> i64`                    | Read `nano-ONXC` attached (`Tx.Amount`)        | Verify caller paid `>= 2 ONXC`        |
+| Host Function       | Signature                      | What It Does                                   | Concrete Use Example                  |
+|:--------------------|:-------------------------------|:-----------------------------------------------|:--------------------------------------|
+| `onxc_get`          | `(slot i32) -> i64`            | Read `uint64` stored at contract `slot`        | Read current vote count from slot `0` |
+| `onxc_set`          | `(slot i32, val i64)`          | Store `uint64` at `slot` (reverts on failure!) | Save `voteCount + 1` into slot `0`    |
+| `onxc_transfer`     | `(to_ptr i32, amt i64) -> i64` | Send `nano-ONXC` from contract balance         | Release prize payout to winner        |
+| `onxc_balance`      | `(addr_ptr i32) -> i64`        | Query balance of any 32-byte address           | Check vault ONXC reserve              |
+| `onxc_log`          | `(ptr i32, len i32)`           | Emit structured event log from WASM RAM        | Emit `"VoteRecorded"` log             |
+| `onxc_caller`       | `() -> i64`                    | Inspect calling sender (`CallerAddr`)          | Verify caller is admin or club member |
+| `onxc_block_height` | `() -> i64`                    | Read current block number (`BlockHeight`)      | Check if election deadline passed     |
+| `onxc_value`        | `() -> i64`                    | Read `nano-ONXC` attached (`Tx.Amount`)        | Verify caller paid `>= 2 ONXC`        |
 
 ---
 
@@ -56,19 +56,19 @@ Every WASM contract imports these 8 capabilities (`internal/vm/vm.go`, `host.go`
 ```mermaid
 flowchart TD
     Call["Call Arrives (ContractAddr, CallerAddr, Value, GasLimit, ReadOnly)"] --> Mode{"ReadOnly == true?"}
-    Mode -->|"Yes (onxc_call RPC)"| Dry["Allow oen_get / oen_balance\nBlock oen_set / oen_transfer from persisting!"]
+    Mode -->|"Yes (onxc_call RPC)"| Dry["Allow onxc_get / onxc_balance\nBlock onxc_set / onxc_transfer from persisting!"]
     Mode -->|"No (TxCall in Block)"| Meter{"Run WASM while GasUsed <= GasLimit"}
     Meter -->|"Completed Cleanly"| Commit["Commit updated StateDB storage slots & balances"]
-    Meter -->|"GasUsed > GasLimit (Out of Gas!)"| Rollback["ATOMIC ROLLBACK!\nDiscard all oen_set writes & transfers (Fee still charged)"]
+    Meter -->|"GasUsed > GasLimit (Out of Gas!)"| Rollback["ATOMIC ROLLBACK!\nDiscard all onxc_set writes & transfers (Fee still charged)"]
 ```
 
 ### Worked Comparison (Starting State: `Slot #0 = 5`)
 1. **Scenario A — Read-Only Query (`onxc_call`, `ReadOnly = true`)**:
-   - Contract reads `oen_get(0) -> 5`. Even if its logic calls `oen_set(0, 6)`, StateDB stays untouched (**`Slot #0` remains `5`**) and you pay zero gas!
+   - Contract reads `onxc_get(0) -> 5`. Even if its logic calls `onxc_set(0, 6)`, StateDB stays untouched (**`Slot #0` remains `5`**) and you pay zero gas!
 2. **Scenario B — Healthy Write (`TxCall`, `GasLimit = 1,000`, uses `450` gas)**:
-   - Reads `5`, calls `oen_set(0, 6)` cleanly. **`Slot #0` commits as `6`!**
+   - Reads `5`, calls `onxc_set(0, 6)` cleanly. **`Slot #0` commits as `6`!**
 3. **Scenario C — Infinite Loop / Out-of-Gas (`TxCall`, `GasLimit = 1,000`, loop needs `1,500` gas)**:
-   - Contract writes `oen_set(0, 99)` halfway through, then runs out of gas at step `1,001`.
+   - Contract writes `onxc_set(0, 99)` halfway through, then runs out of gas at step `1,001`.
    - **Atomic Rollback** restores **`Slot #0` cleanly back to `6`** (never half-written!), while the caller still pays for the consumed compute so validators aren't DoS'd for free.
 
 ---
@@ -90,9 +90,9 @@ Look at the exact binary payloads parsed in `internal/contracts/multisig/multisi
 
 ## Student Practice Exercises (With Answers)
 
-1. **Exercise 1 (Rollback Safety):** A smart contract executes `oen_transfer(Bob, 50 ONXC)`, then hits an infinite loop and exceeds `GasLimit`. Does Bob keep the `50 ONXC`?  
+1. **Exercise 1 (Rollback Safety):** A smart contract executes `onxc_transfer(Bob, 50 ONXC)`, then hits an infinite loop and exceeds `GasLimit`. Does Bob keep the `50 ONXC`?  
    <details><summary>Show Answer</summary>
-   **No!** An out-of-gas failure triggers atomic state rollback — both storage edits (`oen_set`) and internal transfers (`oen_transfer`) are completely reverted.
+   **No!** An out-of-gas failure triggers atomic state rollback — both storage edits (`onxc_set`) and internal transfers (`onxc_transfer`) are completely reverted.
    </details>
 
 2. **Exercise 2 (Multisig Byte Sizing):** Using `InitMultisig`'s payload rule `8 + (ownerCount * 1952)`, how many bytes is a `3-of-5` multisig initialization payload?  

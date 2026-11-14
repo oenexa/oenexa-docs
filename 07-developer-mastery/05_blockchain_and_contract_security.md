@@ -78,7 +78,7 @@ Imagine an old 8-bit car odometer at `000`: subtracting `1` wraps around backwar
 ## 4. Attack #3: Access Control Missing (`onlyOwner` Forgot Check)
 
 **Bug:** Writing `function emergencyWithdraw() public` without verifying `require(msg.sender == owner)`. Anyone monitoring the mempool calls it and steals everything in 1 block.  
-**OENEXA Defense:** Both explicit caller checks (`env.oen_caller()`) and **M-of-N `ML-DSA-65` Multisig** (`internal/contracts/multisig`) prevent any single key or unauthorized caller from moving club/treasury funds.
+**OENEXA Defense:** Both explicit caller checks (`env.onxc_caller()`) and **M-of-N `ML-DSA-65` Multisig** (`internal/contracts/multisig`) prevent any single key or unauthorized caller from moving club/treasury funds.
 
 ---
 

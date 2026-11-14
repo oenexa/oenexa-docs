@@ -99,7 +99,7 @@ flowchart LR
 10. [**Chapter 10: The Dual-Pool Privacy Engine (Shielded Pool & Turnstile)**](./05-privacy-contracts-and-scaling/01_shielded_privacy_pool.md)  
     *Public vs. private balances, `ML-KEM-768` encrypted notes, note commitments, `NullifierSet` double-spend blocking example, read-only Viewing Keys, and Turnstile `Transparent + Shielded == TotalSupply` trace.*
 11. [**Chapter 11: Smart Contracts & The OenexaVM WebAssembly Runtime**](./05-privacy-contracts-and-scaling/02_smart_contracts_wasm_vm.md)  
-    *Vending machine model, `wazero` sandboxing, all 8 `env.oen_*` host functions with a worked counter contract, out-of-gas atomic rollback, read-only `onxc_call`, and M-of-N `ML-DSA-65` multisig walkthrough.*
+    *Vending machine model, `wazero` sandboxing, all 8 `env.onxc_*` host functions with a worked counter contract, out-of-gas atomic rollback, read-only `onxc_call`, and M-of-N `ML-DSA-65` multisig walkthrough.*
 12. [**Chapter 12: P2P Networking, Block Sync, L2 Rollups, Oracles & Self-Upgrades**](./05-privacy-contracts-and-scaling/03_p2p_sync_rollups_oracles_and_upgrades.md)  
     *5 `libp2p` gossip topics & peer reputation, `64`-block catch-up sync, L2 rollup batching (`PreRoot -> PostRoot`), median oracle outlier filtering (`ONXC-USD`), and `SHA-3-256` height-scheduled upgrades.*
 

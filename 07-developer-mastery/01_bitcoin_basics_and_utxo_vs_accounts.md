@@ -83,5 +83,5 @@ Compare that to **OENEXA BFT**:
 
 2. **Exercise 2 (Why Accounts for Smart Contracts):** Why did OENEXA and Ethereum adopt an Account model instead of pure UTXO for general smart contracts?  
    <details><summary>Show Answer</summary>
-   Smart contracts (like lending pools, AMMs, or multisig vaults) need persistent shared global storage slots (`oen_get` / `oen_set`) updated by many concurrent users cleanly without chasing fragmented UTXO bills.
+   Smart contracts (like lending pools, AMMs, or multisig vaults) need persistent shared global storage slots (`onxc_get` / `onxc_set`) updated by many concurrent users cleanly without chasing fragmented UTXO bills.
    </details>
